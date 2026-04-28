@@ -2,13 +2,17 @@
 id: TC-690
 title: empty_meaning_section_satisfies_w030
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-055
   adrs:
   - ADR-047
 phase: 1
+runner: cargo-test
+runner-args: "tc_690_empty_meaning_section_satisfies_w030"
+last-run: 2026-04-28T09:40:00.861945226+00:00
+last-run-duration: 0.2s
 ---
 
 **Covers session test ST-349** — `empty-meaning-section-satisfies-w030`.

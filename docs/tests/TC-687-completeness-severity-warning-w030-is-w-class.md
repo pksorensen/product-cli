@@ -2,13 +2,17 @@
 id: TC-687
 title: completeness_severity_warning_w030_is_w_class
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-055
   adrs:
   - ADR-047
 phase: 1
+runner: cargo-test
+runner-args: "tc_687_completeness_severity_warning_w030_is_w_class"
+last-run: 2026-04-28T09:40:00.861945226+00:00
+last-run-duration: 0.3s
 ---
 
 **Covers session test ST-346** — `completeness-severity-warning-w030-is-w-class`.

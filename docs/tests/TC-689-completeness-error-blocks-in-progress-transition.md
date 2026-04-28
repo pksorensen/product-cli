@@ -2,13 +2,17 @@
 id: TC-689
 title: completeness_error_blocks_in_progress_transition
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-055
   adrs:
   - ADR-047
 phase: 1
+runner: cargo-test
+runner-args: "tc_689_completeness_error_blocks_in_progress_transition"
+last-run: 2026-04-28T09:40:00.861945226+00:00
+last-run-duration: 0.2s
 ---
 
 **Covers session test ST-348** — `completeness-error-blocks-in-progress-transition`.

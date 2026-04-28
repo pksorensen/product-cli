@@ -342,13 +342,13 @@ fn emit_started_tags(
             }
             crate::tags::StartedTagOutcome::SkippedNoGit => {
                 warnings.push(format!(
-                    "warning[W030]: started tag for {} skipped — not a git repository",
+                    "warning[W024]: started tag for {} skipped — not a git repository",
                     id
                 ));
             }
             crate::tags::StartedTagOutcome::Failed(msg) => {
                 warnings.push(format!(
-                    "warning[W030]: started tag for {} not created — {}",
+                    "warning[W024]: started tag for {} not created — {}",
                     id, msg
                 ));
             }

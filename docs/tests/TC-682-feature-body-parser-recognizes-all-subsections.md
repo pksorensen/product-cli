@@ -11,6 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: "tc_682_feature_body_parser_recognizes_all_subsections"
+last-run: 2026-04-28T09:40:00.861945226+00:00
+last-run-duration: 0.2s
 ---
 
 **Covers session test ST-341** — `feature-body-parser-recognizes-all-subsections`.

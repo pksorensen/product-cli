@@ -2,11 +2,17 @@
 id: TC-695
 title: required_sections_configurable
 type: scenario
-status: unimplemented
+status: passing
 validates:
-  features: []
-  adrs: []
+  features:
+  - FT-055
+  adrs:
+  - ADR-047
 phase: 1
+runner: cargo-test
+runner-args: "tc_695_required_sections_configurable"
+last-run: 2026-04-28T09:40:00.861945226+00:00
+last-run-duration: 0.2s
 ---
 
 **Covers session test ST-354** — `required-sections-configurable`.

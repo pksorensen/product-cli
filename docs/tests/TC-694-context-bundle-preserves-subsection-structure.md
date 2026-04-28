@@ -2,7 +2,7 @@
 id: TC-694
 title: context_bundle_preserves_subsection_structure
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-055
@@ -10,6 +10,10 @@ validates:
   - ADR-006
   - ADR-047
 phase: 1
+runner: cargo-test
+runner-args: "tc_694_context_bundle_preserves_subsection_structure"
+last-run: 2026-04-28T09:40:00.861945226+00:00
+last-run-duration: 0.2s
 ---
 
 **Covers session test ST-353** — `context-bundle-preserves-subsection-structure`.

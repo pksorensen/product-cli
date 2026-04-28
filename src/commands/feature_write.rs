@@ -224,11 +224,36 @@ fn link_dep(
 
 pub(crate) fn feature_status(id: &str, new_status: &str) -> CmdResult {
     let _lock = acquire_write_lock_typed()?;
-    let (_, _, graph) = load_graph_typed()?;
+    let (config, _, graph) = load_graph_typed()?;
 
     let status: types::FeatureStatus = new_status
         .parse()
         .map_err(ProductError::ConfigError)?;
+
+    // FT-055 / ADR-047 — when severity is `error`, refuse `planned →
+    // in-progress` transitions for features missing required sections.
+    if status == types::FeatureStatus::InProgress
+        && matches!(
+            config.features.completeness_severity,
+            product_lib::config::CompletenessSeverity::Error
+        )
+    {
+        if let Some(feature) = graph.features.get(id) {
+            if let Some(diag) = product_lib::graph::functional_spec_validation::check_feature(
+                feature,
+                &config.features,
+            ) {
+                let detail = diag.detail.unwrap_or_default();
+                return Err(ProductError::ConfigError(format!(
+                    "error[W030]: feature body missing required section\n  --> {}\n   |   {}\n   = hint: add the missing sections, or set [features].completeness-severity = \"warning\" in product.toml",
+                    diag.file
+                        .map(|p| p.display().to_string())
+                        .unwrap_or_default(),
+                    detail.replace('\n', "\n   |   ")
+                )));
+            }
+        }
+    }
 
     let plan = feat::plan_status_change(&graph, id, status)?;
     feat::apply_status_change(&plan)?;

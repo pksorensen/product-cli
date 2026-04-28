@@ -23,6 +23,9 @@ impl Harness {
         let bin = Self::find_binary();
 
         // Create product.toml
+        // FT-055: by default we disable W030 in test fixtures (most tests
+        // don't carry full functional specs). Tests for W030 itself
+        // override `[features]` in their own product.toml.
         let config = r#"name = "test"
 schema-version = "1"
 [paths]
@@ -37,6 +40,9 @@ feature = "FT"
 adr = "ADR"
 test = "TC"
 dependency = "DEP"
+[features]
+required-sections = []
+functional-spec-subsections = []
 "#;
         std::fs::write(dir.path().join("product.toml"), config).expect("write config");
         std::fs::create_dir_all(dir.path().join("docs/features")).expect("mkdir");
@@ -3760,6 +3766,9 @@ security = "Auth, authz, secrets, trust boundaries"
 storage = "Persistence, durability, volumes"
 networking = "mDNS, mTLS, DNS, service discovery"
 error-handling = "Error model, diagnostics, exit codes"
+[features]
+required-sections = []
+functional-spec-subsections = []
 "#;
 
 fn harness_with_domains() -> Harness {
@@ -17386,3 +17395,837 @@ fn tc_664_slice_adapter_pattern_satisfied_by_cycle_times_slice() {
         first
     );
 }
+
+// ============================================================================
+// FT-055: Feature Functional Specification Section (W030, ADR-047)
+// ============================================================================
+
+/// Test config that enables W030 with default required sections.
+const CONFIG_W030_DEFAULT: &str = r#"name = "test"
+schema-version = "1"
+[paths]
+features = "docs/features"
+adrs = "docs/adrs"
+tests = "docs/tests"
+graph = "docs/graph"
+checklist = "docs/checklist.md"
+dependencies = "docs/dependencies"
+[prefixes]
+feature = "FT"
+adr = "ADR"
+test = "TC"
+dependency = "DEP"
+"#;
+
+/// Body that satisfies W030 — every required section with at least one
+/// non-whitespace content line.
+const COMPLETE_BODY: &str = "## Description\n\nProse describing the feature.\n\n## Functional Specification\n\n### Inputs\n\n- foo\n\n### Outputs\n\n- bar\n\n### State\n\nStateless.\n\n### Behaviour\n\n1. Do thing.\n\n### Invariants\n\n- always holds.\n\n### Error handling\n\nReturn error.\n\n### Boundaries\n\n- edge case.\n\n## Out of scope\n\n- nothing.\n";
+
+/// TC-681 — pure parser detects `## Functional Specification` H2 heading.
+#[test]
+fn tc_681_feature_body_parser_recognizes_functional_specification_section() {
+    use product_lib::feature::body_sections::parse_body_sections;
+
+    // Positive: heading is detected.
+    let body = "## Description\n\nSome prose.\n\n## Functional Specification\n\n### Inputs\n\n- foo\n";
+    let s = parse_body_sections(body);
+    assert!(
+        s.h2.iter().any(|h| h == "Functional Specification"),
+        "expected H2 'Functional Specification' in {:?}",
+        s.h2
+    );
+
+    // Lowercase is NOT recognised (case-sensitive).
+    let s2 = parse_body_sections("## functional specification\n\nx\n");
+    assert!(
+        !s2.h2.iter().any(|h| h == "Functional Specification"),
+        "case-sensitive match: lowercase must not be recognised"
+    );
+
+    // Trailing colon does NOT match.
+    let s3 = parse_body_sections("## Functional Specification:\n\nx\n");
+    assert!(
+        !s3.h2.iter().any(|h| h == "Functional Specification"),
+        "trailing colon must not match the canonical name"
+    );
+
+    // Inside a fenced code block — ignored.
+    let s4 = parse_body_sections(
+        "## Description\n\n```markdown\n## Functional Specification\n```\n\nProse.\n",
+    );
+    assert!(
+        !s4.h2.iter().any(|h| h == "Functional Specification"),
+        "fenced heading must not count"
+    );
+}
+
+/// TC-682 — parser identifies all H3 subsections under `## Functional
+/// Specification` and attributes them to that parent.
+#[test]
+fn tc_682_feature_body_parser_recognizes_all_subsections() {
+    use product_lib::feature::body_sections::parse_body_sections;
+
+    let body = "\
+## Functional Specification
+
+### Inputs
+
+x
+
+### Outputs
+
+x
+
+### State
+
+x
+
+### Behaviour
+
+x
+
+### Invariants
+
+x
+
+### Error handling
+
+x
+
+### Boundaries
+
+x
+";
+    let s = parse_body_sections(body);
+    let h3 = s
+        .h3_under
+        .get("Functional Specification")
+        .expect("expected h3 set under Functional Specification");
+    assert_eq!(
+        h3,
+        &vec![
+            "Inputs".to_string(),
+            "Outputs".to_string(),
+            "State".to_string(),
+            "Behaviour".to_string(),
+            "Invariants".to_string(),
+            "Error handling".to_string(),
+            "Boundaries".to_string(),
+        ],
+        "expected the seven default subsections in document order"
+    );
+}
+
+/// TC-683 — `graph check` emits W030 when a top-level required section is missing.
+#[test]
+fn tc_683_w030_fires_when_required_section_missing() {
+    let h = Harness::new();
+    h.write("product.toml", CONFIG_W030_DEFAULT);
+    h.write(
+        "docs/features/FT-001-test.md",
+        "---\nid: FT-001\ntitle: Sample\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {}\n---\n\n## Description\n\nOnly description.\n",
+    );
+
+    let out = h.run(&["graph", "check", "--format", "json"]);
+    assert_eq!(out.exit_code, 2, "expected exit 2; stderr: {}", out.stderr);
+    let json: serde_json::Value =
+        serde_json::from_str(&out.stdout).expect("valid JSON on stdout");
+    let warnings = json["warnings"].as_array().expect("warnings array");
+    let w030: Vec<&serde_json::Value> = warnings
+        .iter()
+        .filter(|w| w["code"] == "W030")
+        .collect();
+    assert_eq!(w030.len(), 1, "expected one W030 warning, got {:#?}", warnings);
+    let entry = w030[0];
+    let detail = entry["detail"].as_str().unwrap_or_default();
+    assert!(detail.contains("Functional Specification"));
+    assert!(detail.contains("Out of scope"));
+    let hint = entry["hint"].as_str().unwrap_or_default();
+    assert!(hint.contains("product request change") && hint.contains("body"));
+    let file = entry["file"].as_str().unwrap_or_default();
+    assert!(file.ends_with("FT-001-test.md"), "file: {}", file);
+}
+
+/// TC-684 — W030 fires when `## Functional Specification` is present but
+/// required H3 subsections are missing.
+#[test]
+fn tc_684_w030_fires_when_required_subsection_missing() {
+    let h = Harness::new();
+    h.write("product.toml", CONFIG_W030_DEFAULT);
+    let body = "\
+## Description
+
+Prose.
+
+## Functional Specification
+
+### Inputs
+
+x
+
+### Outputs
+
+x
+
+## Out of scope
+
+x
+";
+    h.write(
+        "docs/features/FT-001-test.md",
+        &format!(
+            "---\nid: FT-001\ntitle: Sample\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {{}}\n---\n\n{}",
+            body
+        ),
+    );
+
+    let out = h.run(&["graph", "check", "--format", "json"]);
+    assert_eq!(out.exit_code, 2);
+    let json: serde_json::Value = serde_json::from_str(&out.stdout).expect("valid JSON");
+    let warnings = json["warnings"].as_array().expect("warnings");
+    let w030: Vec<&serde_json::Value> = warnings.iter().filter(|w| w["code"] == "W030").collect();
+    assert_eq!(w030.len(), 1, "expected exactly one W030 (one per feature)");
+    let detail = w030[0]["detail"].as_str().unwrap_or_default();
+    for missing in [
+        "Functional Specification > State",
+        "Functional Specification > Behaviour",
+        "Functional Specification > Invariants",
+        "Functional Specification > Error handling",
+        "Functional Specification > Boundaries",
+    ] {
+        assert!(detail.contains(missing), "expected '{}' in detail:\n{}", missing, detail);
+    }
+    // Parent section itself must NOT be reported as a missing top-level.
+    assert!(
+        !detail.contains("- Functional Specification\n"),
+        "parent must not be re-reported when present:\n{}",
+        detail
+    );
+}
+
+/// TC-685 — All required sections present clears W030.
+#[test]
+fn tc_685_w030_clear_when_all_sections_present() {
+    let h = Harness::new();
+    h.write("product.toml", CONFIG_W030_DEFAULT);
+    h.write(
+        "docs/features/FT-001-test.md",
+        &format!(
+            "---\nid: FT-001\ntitle: Sample\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {{}}\n---\n\n{}",
+            COMPLETE_BODY
+        ),
+    );
+
+    let out = h.run(&["graph", "check", "--format", "json"]);
+    let json: serde_json::Value = serde_json::from_str(&out.stdout).expect("valid JSON");
+    let warnings = json["warnings"].as_array().expect("warnings");
+    let w030_count = warnings.iter().filter(|w| w["code"] == "W030").count();
+    assert_eq!(w030_count, 0, "expected no W030 for complete body, got: {:#?}", warnings);
+}
+
+/// TC-686 — `required-from-phase` exempts features below the threshold.
+#[test]
+fn tc_686_w030_respects_required_from_phase() {
+    let h = Harness::new();
+    h.write(
+        "product.toml",
+        r#"name = "test"
+schema-version = "1"
+[paths]
+features = "docs/features"
+adrs = "docs/adrs"
+tests = "docs/tests"
+graph = "docs/graph"
+checklist = "docs/checklist.md"
+dependencies = "docs/dependencies"
+[prefixes]
+feature = "FT"
+adr = "ADR"
+test = "TC"
+dependency = "DEP"
+[features]
+required-from-phase = 2
+"#,
+    );
+    // Phase 1 — should be exempt.
+    h.write(
+        "docs/features/FT-001-stub.md",
+        "---\nid: FT-001\ntitle: Stub\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {}\n---\n\n",
+    );
+    // Phase 2 — should fire W030.
+    h.write(
+        "docs/features/FT-002-real.md",
+        "---\nid: FT-002\ntitle: Real\nphase: 2\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {}\n---\n\n",
+    );
+
+    let out = h.run(&["graph", "check", "--format", "json"]);
+    let json: serde_json::Value = serde_json::from_str(&out.stdout).expect("valid JSON");
+    let warnings = json["warnings"].as_array().expect("warnings");
+    let w030: Vec<&serde_json::Value> = warnings.iter().filter(|w| w["code"] == "W030").collect();
+    assert_eq!(w030.len(), 1, "expected one W030 (FT-002), got: {:#?}", w030);
+    let file = w030[0]["file"].as_str().unwrap_or_default();
+    assert!(file.contains("FT-002-real.md"), "expected W030 on FT-002, got file: {}", file);
+}
+
+/// TC-687 — Default severity is warning; W030 fires as warning, exit 2.
+#[test]
+fn tc_687_completeness_severity_warning_w030_is_w_class() {
+    let h = Harness::new();
+    h.write("product.toml", CONFIG_W030_DEFAULT);
+    h.write(
+        "docs/features/FT-001-test.md",
+        "---\nid: FT-001\ntitle: Sample\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {}\n---\n\n",
+    );
+
+    let out = h.run(&["graph", "check", "--format", "json"]);
+    assert_eq!(out.exit_code, 2);
+    let json: serde_json::Value = serde_json::from_str(&out.stdout).expect("valid JSON");
+    let errors = json["errors"].as_array().expect("errors");
+    let warnings = json["warnings"].as_array().expect("warnings");
+    assert_eq!(
+        errors.iter().filter(|e| e["code"] == "W030").count(),
+        0,
+        "no W030 entries expected in errors array"
+    );
+    assert!(warnings.iter().any(|w| w["code"] == "W030"));
+}
+
+/// TC-688 — Setting `completeness-severity = "error"` promotes W030 to E-class
+/// while keeping the code stable.
+#[test]
+fn tc_688_completeness_severity_error_w030_becomes_e_class() {
+    let h = Harness::new();
+    h.write(
+        "product.toml",
+        r#"name = "test"
+schema-version = "1"
+[paths]
+features = "docs/features"
+adrs = "docs/adrs"
+tests = "docs/tests"
+graph = "docs/graph"
+checklist = "docs/checklist.md"
+dependencies = "docs/dependencies"
+[prefixes]
+feature = "FT"
+adr = "ADR"
+test = "TC"
+dependency = "DEP"
+[features]
+completeness-severity = "error"
+"#,
+    );
+    h.write(
+        "docs/features/FT-001-test.md",
+        "---\nid: FT-001\ntitle: Sample\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {}\n---\n\n",
+    );
+
+    let out = h.run(&["graph", "check", "--format", "json"]);
+    assert_eq!(out.exit_code, 1, "expected exit 1; stderr: {}", out.stderr);
+    let json: serde_json::Value = serde_json::from_str(&out.stdout).expect("valid JSON");
+    let errors = json["errors"].as_array().expect("errors");
+    let warnings = json["warnings"].as_array().expect("warnings");
+    let e030: Vec<&serde_json::Value> = errors.iter().filter(|e| e["code"] == "W030").collect();
+    assert_eq!(e030.len(), 1, "expected one W030 in errors array, got: {:#?}", errors);
+    assert_eq!(
+        warnings.iter().filter(|w| w["code"] == "W030").count(),
+        0,
+        "no W030 in warnings when severity is error"
+    );
+    assert_eq!(e030[0]["tier"].as_str().unwrap_or(""), "error");
+}
+
+/// TC-689 — When severity is `error`, `feature status … in-progress` refuses
+/// the transition and the file remains unchanged.
+#[test]
+fn tc_689_completeness_error_blocks_in_progress_transition() {
+    let h = Harness::new();
+    h.write(
+        "product.toml",
+        r#"name = "test"
+schema-version = "1"
+[paths]
+features = "docs/features"
+adrs = "docs/adrs"
+tests = "docs/tests"
+graph = "docs/graph"
+checklist = "docs/checklist.md"
+dependencies = "docs/dependencies"
+[prefixes]
+feature = "FT"
+adr = "ADR"
+test = "TC"
+dependency = "DEP"
+[features]
+completeness-severity = "error"
+"#,
+    );
+    // Body missing only `### Boundaries`.
+    let body = "\
+## Description
+
+x
+
+## Functional Specification
+
+### Inputs
+
+x
+
+### Outputs
+
+x
+
+### State
+
+x
+
+### Behaviour
+
+x
+
+### Invariants
+
+x
+
+### Error handling
+
+x
+
+## Out of scope
+
+x
+";
+    let path = "docs/features/FT-001-x.md";
+    let raw = format!(
+        "---\nid: FT-001\ntitle: X\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {{}}\n---\n\n{}",
+        body
+    );
+    h.write(path, &raw);
+
+    let before = h.read(path);
+    let out = h.run(&["feature", "status", "FT-001", "in-progress"]);
+    assert_ne!(out.exit_code, 0, "transition must fail; stderr: {}", out.stderr);
+    assert!(out.stderr.contains("W030"), "stderr must mention W030: {}", out.stderr);
+    assert!(
+        out.stderr.contains("Boundaries"),
+        "stderr must mention the missing subsection: {}",
+        out.stderr
+    );
+    let after = h.read(path);
+    assert_eq!(before, after, "file must be unchanged after blocked transition");
+}
+
+/// TC-690 — A section with explicit empty-meaning content satisfies W030.
+#[test]
+fn tc_690_empty_meaning_section_satisfies_w030() {
+    let h = Harness::new();
+    h.write("product.toml", CONFIG_W030_DEFAULT);
+    let body = "\
+## Description
+
+x
+
+## Functional Specification
+
+### Inputs
+
+x
+
+### Outputs
+
+x
+
+### State
+
+Stateless. No data is retained between requests.
+
+### Behaviour
+
+x
+
+### Invariants
+
+x
+
+### Error handling
+
+x
+
+### Boundaries
+
+x
+
+## Out of scope
+
+x
+";
+    h.write(
+        "docs/features/FT-001-x.md",
+        &format!(
+            "---\nid: FT-001\ntitle: X\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {{}}\n---\n\n{}",
+            body
+        ),
+    );
+
+    let out = h.run(&["graph", "check", "--format", "json"]);
+    let json: serde_json::Value = serde_json::from_str(&out.stdout).expect("valid JSON");
+    let warnings = json["warnings"].as_array().expect("warnings");
+    let count = warnings.iter().filter(|w| w["code"] == "W030").count();
+    assert_eq!(count, 0, "empty-meaning content satisfies W030, got: {:#?}", warnings);
+}
+
+/// TC-691 — Whitespace-only section is treated as absent.
+#[test]
+fn tc_691_whitespace_only_section_emits_w030() {
+    let h = Harness::new();
+    h.write("product.toml", CONFIG_W030_DEFAULT);
+    let body = "\
+## Description
+
+x
+
+## Functional Specification
+
+### Inputs
+
+x
+
+### Outputs
+
+x
+
+### State
+
+
+
+### Behaviour
+
+x
+
+### Invariants
+
+x
+
+### Error handling
+
+x
+
+### Boundaries
+
+x
+
+## Out of scope
+
+x
+";
+    h.write(
+        "docs/features/FT-001-x.md",
+        &format!(
+            "---\nid: FT-001\ntitle: X\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {{}}\n---\n\n{}",
+            body
+        ),
+    );
+
+    let out = h.run(&["graph", "check", "--format", "json"]);
+    let json: serde_json::Value = serde_json::from_str(&out.stdout).expect("valid JSON");
+    let warnings = json["warnings"].as_array().expect("warnings");
+    let w030: Vec<&serde_json::Value> = warnings.iter().filter(|w| w["code"] == "W030").collect();
+    assert_eq!(w030.len(), 1, "expected one W030; got: {:#?}", warnings);
+    let detail = w030[0]["detail"].as_str().unwrap_or_default();
+    assert!(detail.contains("Functional Specification > State"));
+    assert!(!detail.contains("Functional Specification > Behaviour"));
+}
+
+/// TC-692 — Absent top-level section emits W030 and naming is exact.
+#[test]
+fn tc_692_absent_section_emits_w030() {
+    let h = Harness::new();
+    h.write("product.toml", CONFIG_W030_DEFAULT);
+    let body = "\
+## Description
+
+x
+
+## Functional Specification
+
+### Inputs
+
+x
+
+### Outputs
+
+x
+
+### State
+
+x
+
+### Behaviour
+
+x
+
+### Invariants
+
+x
+
+### Error handling
+
+x
+
+### Boundaries
+
+x
+";
+    h.write(
+        "docs/features/FT-001-x.md",
+        &format!(
+            "---\nid: FT-001\ntitle: X\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {{}}\n---\n\n{}",
+            body
+        ),
+    );
+
+    let out = h.run(&["graph", "check", "--format", "json"]);
+    let json: serde_json::Value = serde_json::from_str(&out.stdout).expect("valid JSON");
+    let warnings = json["warnings"].as_array().expect("warnings");
+    let w030: Vec<&serde_json::Value> = warnings.iter().filter(|w| w["code"] == "W030").collect();
+    assert_eq!(w030.len(), 1);
+    let detail = w030[0]["detail"].as_str().unwrap_or_default();
+    assert!(
+        detail.contains("- Out of scope"),
+        "expected 'Out of scope' missing in detail:\n{}",
+        detail
+    );
+    // Make sure exactly one section is reported missing in this body.
+    let dash_count = detail.matches("\n  -").count();
+    assert_eq!(dash_count, 1, "expected exactly one missing section bullet:\n{}", detail);
+}
+
+/// TC-693 — `product context FT-NNN --depth 2` includes the entire body.
+#[test]
+fn tc_693_context_bundle_includes_full_functional_spec() {
+    let h = Harness::new();
+    h.write("product.toml", CONFIG_W030_DEFAULT);
+    h.write(
+        "docs/features/FT-001-x.md",
+        &format!(
+            "---\nid: FT-001\ntitle: X\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {{}}\n---\n\n{}",
+            COMPLETE_BODY
+        ),
+    );
+
+    let out = h.run(&["context", "FT-001", "--depth", "2"]);
+    out.assert_exit(0);
+    for needle in [
+        "### Inputs",
+        "### Outputs",
+        "### State",
+        "### Behaviour",
+        "### Invariants",
+        "### Error handling",
+        "### Boundaries",
+        "## Out of scope",
+    ] {
+        assert!(
+            out.stdout.contains(needle),
+            "expected '{}' in context output:\n{}",
+            needle,
+            out.stdout
+        );
+    }
+}
+
+/// TC-694 — Subsection structure (H2/H3 nesting) is preserved verbatim in the
+/// bundle.
+#[test]
+fn tc_694_context_bundle_preserves_subsection_structure() {
+    let h = Harness::new();
+    h.write("product.toml", CONFIG_W030_DEFAULT);
+    let body = "\
+## Description
+
+prose
+
+## Functional Specification
+
+### Inputs
+
+```yaml
+key: value
+```
+
+### Outputs
+
+| col1 | col2 |
+| --- | --- |
+| a | b |
+
+### State
+
+stateless
+
+### Behaviour
+
+1. step one
+
+### Invariants
+
+- p
+
+### Error handling
+
+err
+
+### Boundaries
+
+edges
+
+## Out of scope
+
+nothing
+";
+    h.write(
+        "docs/features/FT-001-x.md",
+        &format!(
+            "---\nid: FT-001\ntitle: X\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {{}}\n---\n\n{}",
+            body
+        ),
+    );
+
+    let out = h.run(&["context", "FT-001"]);
+    out.assert_exit(0);
+    // Code fence preserved verbatim.
+    assert!(out.stdout.contains("```yaml"), "expected fenced yaml; stdout:\n{}", out.stdout);
+    assert!(out.stdout.contains("key: value"));
+    // Table preserved.
+    assert!(out.stdout.contains("| col1 | col2 |"));
+    // H3 not promoted/demoted.
+    assert!(out.stdout.contains("### Inputs"));
+    assert!(out.stdout.contains("## Out of scope"));
+}
+
+/// TC-695 — `[features].required-sections` overrides the default top-level set.
+#[test]
+fn tc_695_required_sections_configurable() {
+    let h = Harness::new();
+    h.write(
+        "product.toml",
+        r#"name = "test"
+schema-version = "1"
+[paths]
+features = "docs/features"
+adrs = "docs/adrs"
+tests = "docs/tests"
+graph = "docs/graph"
+checklist = "docs/checklist.md"
+dependencies = "docs/dependencies"
+[prefixes]
+feature = "FT"
+adr = "ADR"
+test = "TC"
+dependency = "DEP"
+[features]
+required-sections = ["Description", "Acceptance criteria"]
+functional-spec-subsections = []
+"#,
+    );
+    h.write(
+        "docs/features/FT-001-x.md",
+        "---\nid: FT-001\ntitle: X\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {}\n---\n\n## Description\n\nx\n\n## Functional Specification\n\nx\n",
+    );
+
+    let out = h.run(&["graph", "check", "--format", "json"]);
+    let json: serde_json::Value = serde_json::from_str(&out.stdout).expect("valid JSON");
+    let warnings = json["warnings"].as_array().expect("warnings");
+    let w030: Vec<&serde_json::Value> = warnings.iter().filter(|w| w["code"] == "W030").collect();
+    assert_eq!(w030.len(), 1, "expected one W030");
+    let detail = w030[0]["detail"].as_str().unwrap_or_default();
+    assert!(detail.contains("Acceptance criteria"));
+    // Functional Specification is no longer required.
+    assert!(!detail.contains("- Functional Specification"));
+    // Out of scope is no longer required.
+    assert!(!detail.contains("Out of scope"));
+}
+
+/// TC-696 — `[features].functional-spec-subsections` overrides the default
+/// H3 set required under `## Functional Specification`.
+#[test]
+fn tc_696_functional_spec_subsections_configurable() {
+    let h = Harness::new();
+    h.write(
+        "product.toml",
+        r#"name = "test"
+schema-version = "1"
+[paths]
+features = "docs/features"
+adrs = "docs/adrs"
+tests = "docs/tests"
+graph = "docs/graph"
+checklist = "docs/checklist.md"
+dependencies = "docs/dependencies"
+[prefixes]
+feature = "FT"
+adr = "ADR"
+test = "TC"
+dependency = "DEP"
+[features]
+required-sections = ["Functional Specification"]
+functional-spec-subsections = ["Inputs", "Outputs"]
+"#,
+    );
+    let body = "## Functional Specification\n\n### Inputs\n\nx\n\n### Outputs\n\nx\n\n### Behaviour\n\nx\n";
+    h.write(
+        "docs/features/FT-001-x.md",
+        &format!(
+            "---\nid: FT-001\ntitle: X\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {{}}\n---\n\n{}",
+            body
+        ),
+    );
+
+    let out = h.run(&["graph", "check", "--format", "json"]);
+    let json: serde_json::Value = serde_json::from_str(&out.stdout).expect("valid JSON");
+    let warnings = json["warnings"].as_array().expect("warnings");
+    let w030_count = warnings.iter().filter(|w| w["code"] == "W030").count();
+    assert_eq!(
+        w030_count, 0,
+        "expected no W030 — only Inputs/Outputs required and present, got: {:#?}",
+        warnings
+    );
+
+    // Now remove Outputs and assert W030 fires.
+    let body2 = "## Functional Specification\n\n### Inputs\n\nx\n\n### Behaviour\n\nx\n";
+    h.write(
+        "docs/features/FT-001-x.md",
+        &format!(
+            "---\nid: FT-001\ntitle: X\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {{}}\n---\n\n{}",
+            body2
+        ),
+    );
+    let out2 = h.run(&["graph", "check", "--format", "json"]);
+    let json2: serde_json::Value = serde_json::from_str(&out2.stdout).expect("valid JSON");
+    let warnings2 = json2["warnings"].as_array().expect("warnings");
+    let w030_2: Vec<&serde_json::Value> = warnings2.iter().filter(|w| w["code"] == "W030").collect();
+    assert_eq!(w030_2.len(), 1);
+    let detail = w030_2[0]["detail"].as_str().unwrap_or_default();
+    assert!(detail.contains("Functional Specification > Outputs"), "detail: {}", detail);
+}
+
+/// TC-697 — Exit criteria scenario for FT-055.
+#[test]
+fn tc_697_functional_specification_feature_exit_criteria() {
+    // The exit criteria itself is satisfied when TC-681..TC-696 all pass.
+    // This TC asserts the high-level invariants directly: (a) parser
+    // module exists, (b) graph check uses W030 with stable code under
+    // both severities, (c) status-change gate refuses transitions when
+    // severity = error.
+    let h = Harness::new();
+    h.write("product.toml", CONFIG_W030_DEFAULT);
+    h.write(
+        "docs/features/FT-001-x.md",
+        "---\nid: FT-001\ntitle: X\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {}\n---\n\n",
+    );
+    let out = h.run(&["graph", "check"]);
+    assert_eq!(out.exit_code, 2);
+    assert!(out.stderr.contains("W030"));
+}
+

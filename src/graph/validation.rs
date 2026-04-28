@@ -44,6 +44,13 @@ impl KnowledgeGraph {
         super::removal_validation::check_all(self, &mut result);
         if let Some(cfg) = config {
             super::removal_validation::check_unknown_tc_types(self, cfg, &mut result);
+            // FT-055 / ADR-047 — W030 functional-spec completeness.
+            let findings = super::functional_spec_validation::check_features(
+                self.features.values(),
+                &cfg.features,
+            );
+            result.errors.extend(findings.errors);
+            result.warnings.extend(findings.warnings);
         }
         result
     }

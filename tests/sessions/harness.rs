@@ -216,6 +216,9 @@ networking = "mDNS, mTLS, DNS"
 error-handling = "Error model, diagnostics"
 storage = "Persistence, durability"
 consensus = "Raft, leader election"
+[features]
+required-sections = []
+functional-spec-subsections = []
 "#;
         std::fs::write(dir.path().join("product.toml"), config).expect("write product.toml");
         for sub in [
