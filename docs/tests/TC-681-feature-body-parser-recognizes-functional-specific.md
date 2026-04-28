@@ -2,11 +2,15 @@
 id: TC-681
 title: feature_body_parser_recognizes_functional_specification_section
 type: scenario
-status: unimplemented
+status: passing
 validates:
-  features: []
-  adrs: []
+  features:
+  - FT-055
+  adrs:
+  - ADR-047
 phase: 1
+runner: cargo-test
+runner-args: "tc_681_feature_body_parser_recognizes_functional_specification_section"
 ---
 
 **Covers session test ST-340** — `feature-body-parser-recognizes-functional-specification-section`.

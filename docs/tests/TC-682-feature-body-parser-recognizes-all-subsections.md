@@ -2,11 +2,15 @@
 id: TC-682
 title: feature_body_parser_recognizes_all_subsections
 type: scenario
-status: unimplemented
+status: passing
 validates:
-  features: []
-  adrs: []
+  features:
+  - FT-055
+  adrs:
+  - ADR-047
 phase: 1
+runner: cargo-test
+runner-args: "tc_682_feature_body_parser_recognizes_all_subsections"
 ---
 
 **Covers session test ST-341** — `feature-body-parser-recognizes-all-subsections`.
