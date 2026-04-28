@@ -2,7 +2,7 @@
 id: TC-703
 title: product_init_emits_canonical_product_layout
 type: scenario
-status: planned
+status: passing
 validates:
   features:
   - FT-057
