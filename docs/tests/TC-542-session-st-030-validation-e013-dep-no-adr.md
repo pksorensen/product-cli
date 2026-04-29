@@ -14,8 +14,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_542_session_st_030_validation_e013_dep_no_adr
-last-run: 2026-04-22T12:59:08.455929045+00:00
-last-run-duration: 0.5s
+last-run: 2026-04-28T17:17:56.374243242+00:00
+last-run-duration: 0.2s
 ---
 
 ## Description

@@ -11,8 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: "tc_609_custom_type_appears_in_context_bundle_after_builtins"
-last-run: 2026-04-20T08:00:23.695686320+00:00
-last-run-duration: 0.2s
+last-run: 2026-04-28T17:18:24.403922937+00:00
+last-run-duration: 0.3s
 ---
 
 ## Session: ST-188 — custom-type-appears-in-context-bundle-after-builtins

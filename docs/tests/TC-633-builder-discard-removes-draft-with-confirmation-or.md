@@ -11,7 +11,7 @@ validates:
 phase: 5
 runner: cargo-test
 runner-args: "tc_633_builder_discard_removes_draft_with_confirmation_or_force"
-last-run: 2026-04-21T12:40:57.330357420+00:00
+last-run: 2026-04-28T17:18:30.314161058+00:00
 last-run-duration: 0.3s
 ---
 

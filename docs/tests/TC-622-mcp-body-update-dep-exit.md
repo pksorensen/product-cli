@@ -12,8 +12,8 @@ validates:
 phase: 5
 runner: cargo-test
 runner-args: "tc_622_mcp_body_update_dep_exit"
-last-run: 2026-04-20T13:27:05.074524328+00:00
-last-run-duration: 0.2s
+last-run: 2026-04-28T17:18:28.910019802+00:00
+last-run-duration: 0.3s
 ---
 
 ## Exit Criteria — FT-050 MCP body_update Supports Dependencies

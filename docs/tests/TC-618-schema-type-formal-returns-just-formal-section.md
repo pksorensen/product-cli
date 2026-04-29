@@ -11,7 +11,7 @@ validates:
 phase: 5
 runner: cargo-test
 runner-args: "tc_618_schema_type_formal_returns_just_formal_section"
-last-run: 2026-04-20T13:17:28.076057385+00:00
+last-run: 2026-04-28T17:18:28.211113744+00:00
 last-run-duration: 0.2s
 ---
 

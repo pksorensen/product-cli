@@ -12,7 +12,7 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_559_verify_feature_scope_unchanged
-last-run: 2026-04-18T10:54:35.903075401+00:00
+last-run: 2026-04-28T17:18:11.333024438+00:00
 last-run-duration: 0.2s
 ---
 

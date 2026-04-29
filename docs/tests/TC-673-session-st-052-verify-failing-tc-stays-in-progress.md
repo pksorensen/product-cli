@@ -13,8 +13,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_673_session_st_052_verify_failing_tc_stays_in_progress
-last-run: 2026-04-22T12:59:08.455929045+00:00
-last-run-duration: 0.2s
+last-run: 2026-04-28T17:18:11.333024438+00:00
+last-run-duration: 0.3s
 ---
 
 Session ST-052 — a failing TC runner keeps the feature off complete, records TC failing, emits no completion tag.

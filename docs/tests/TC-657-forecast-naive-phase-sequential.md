@@ -11,8 +11,8 @@ validates:
 phase: 5
 runner: cargo-test
 runner-args: tc_657_forecast_naive_phase_sequential
-last-run: 2026-04-21T13:48:57.409699651+00:00
-last-run-duration: 0.4s
+last-run: 2026-04-28T17:18:35.823456220+00:00
+last-run-duration: 0.5s
 ---
 
 ## Session — forecast-naive-phase-sequential

@@ -11,7 +11,7 @@ validates:
 phase: 5
 runner: cargo-test
 runner-args: "tc_624_request_log_migrate_paths_rewrites_history"
-last-run: 2026-04-20T13:50:09.260044626+00:00
+last-run: 2026-04-28T17:18:29.646301301+00:00
 last-run-duration: 0.2s
 ---
 

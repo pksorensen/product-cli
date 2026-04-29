@@ -12,8 +12,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_575_adr_check_conflicts_structural_only
-last-run: 2026-04-18T14:07:23.114790413+00:00
-last-run-duration: 0.1s
+last-run: 2026-04-28T17:18:15.123973165+00:00
+last-run-duration: 0.2s
 ---
 
 ## Invariant: ST-132 — adr-check-conflicts-structural-only

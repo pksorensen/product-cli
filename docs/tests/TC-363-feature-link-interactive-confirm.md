@@ -11,8 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: "tc_363_feature_link_interactive_confirm"
-last-run: 2026-04-18T10:41:58.940827843+00:00
-last-run-duration: 0.2s
+last-run: 2026-04-28T17:17:27.967937293+00:00
+last-run-duration: 0.4s
 ---
 
 run `product feature link FT-009 --adr ADR-021`. Assert interactive prompt shows inferred TC links. On confirmation, assert TC links applied atomically with the ADR link.

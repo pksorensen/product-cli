@@ -11,8 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: "tc_601_tc_type_exit_criteria_drives_phase_gate"
-last-run: 2026-04-20T08:00:23.695686320+00:00
-last-run-duration: 2.3s
+last-run: 2026-04-28T17:18:24.403922937+00:00
+last-run-duration: 0.2s
 ---
 
 ## Session: ST-180 — tc-type-exit-criteria-drives-phase-gate

@@ -11,8 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_594_w023_fires_on_deprecated_field
-last-run: 2026-04-20T08:01:08.284116371+00:00
-last-run-duration: 0.1s
+last-run: 2026-04-28T17:18:20.851202996+00:00
+last-run-duration: 0.2s
 ---
 
 ## Session: ST-148 — w023-fires-on-deprecated-field

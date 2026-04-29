@@ -11,7 +11,7 @@ validates:
 phase: 5
 runner: cargo-test
 runner-args: tc_515_log_undo_does_not_delete_entries
-last-run: 2026-04-18T10:42:11.121063959+00:00
+last-run: 2026-04-28T17:17:49.623616813+00:00
 last-run-duration: 0.2s
 ---
 

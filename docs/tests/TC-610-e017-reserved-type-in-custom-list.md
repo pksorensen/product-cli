@@ -11,7 +11,7 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: "tc_610_e017_reserved_type_in_custom_list"
-last-run: 2026-04-20T08:00:23.695686320+00:00
+last-run: 2026-04-28T17:18:24.403922937+00:00
 last-run-duration: 0.2s
 ---
 

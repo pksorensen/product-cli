@@ -11,8 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: "tc_102_mcp_http_wrong_token_401"
-last-run: 2026-04-18T10:41:43.286383101+00:00
-last-run-duration: 0.2s
+last-run: 2026-04-28T17:17:03.134785629+00:00
+last-run-duration: 0.3s
 ---
 
 send request with wrong bearer token. Assert 401.

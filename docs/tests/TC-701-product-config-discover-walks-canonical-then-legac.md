@@ -11,7 +11,7 @@ validates:
 phase: 5
 runner: cargo-test
 runner-args: "--test sessions tc_701a_canonical_layout_loads"
-last-run: 2026-04-28T10:28:42.987969930+00:00
+last-run: 2026-04-28T17:18:49.837029585+00:00
 last-run-duration: 0.2s
 ---
 

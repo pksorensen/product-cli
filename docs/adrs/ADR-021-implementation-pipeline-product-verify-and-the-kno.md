@@ -5,9 +5,14 @@ status: accepted
 features: []
 supersedes: []
 superseded-by: []
-domains: [api]
+domains:
+- api
 scope: domain
-content-hash: sha256:904c6499db4d261b4407b93a8d257113789815e1c4c14c71dea41ec7e01285ce
+content-hash: sha256:a689b9847e258be36a4a530771db27d8661b70f4a30627833c4121064b90ca95
+amendments:
+- date: 2026-04-28T19:33:32Z
+  reason: 'FT-058: invert the no-runner clause from soft-skip to hard E022 fail when the linked feature is in-progress or complete. The original "TCs without a runner field are always unrunnable, do not block feature completion" rule let features stay perpetually in-progress because the missing-runner TC was never noticed. The requires-fails-prerequisite branch of unrunnable is preserved unchanged. Adds a rejected-alternative entry documenting the historical soft-skip behaviour.'
+  previous-hash: sha256:904c6499db4d261b4407b93a8d257113789815e1c4c14c71dea41ec7e01285ce
 ---
 
 **Status:** Accepted
@@ -126,7 +131,15 @@ failure-message: "prerequisite 'two-node-cluster' not satisfied"
 
 This is the entire scope of Product's involvement with test infrastructure: check a declared condition, report the result. Never satisfy the condition. Never manage state. Never set up or tear down anything.
 
-TCs without a `runner` field are always `unrunnable`. TCs with a `runner` but failing `requires` are `unrunnable`. Both are counted separately and do not block feature completion.
+**Runner configuration is required for active features (FT-058 amendment, 2026-04-28).**
+
+`unrunnable` carries two distinct meanings, with different remediation paths and therefore different blocking semantics:
+
+1. **Environmental — soft.** The TC has `runner` and `runner-args` configured but a declared `requires` prerequisite is not satisfied. The wrapper-script escape hatch lives here. Product reports the TC as `unrunnable` with the prerequisite name in `failure-message`, the run continues, and feature status is not blocked. The developer fixes this by changing the environment (or by accepting that this TC simply does not run in this context).
+
+2. **Configuration — hard.** The TC has no `runner` field, or no `runner-args` field. This is missing specification, not missing environment: the developer fixes it by editing the YAML. When the linked feature's status is `in-progress` or `complete`, Product fails fast with `error[E022]: TC runner configuration missing` listing every offending TC. The check fires at five gates — `product preflight`, `product request apply`, `product feature status FT-XXX in-progress`, `product graph check`, and `product verify` — so the offence cannot survive any path that promotes a feature toward completion. When the feature is `planned` or `abandoned`, the historical soft-skip behaviour is preserved: a TC sketched out during planning may exist without runner config and the verify run continues with a `UNIMPLEMENTED` line for it.
+
+The asymmetry exists because Product can refuse a configuration error without overstepping its boundary — the YAML is Product's source of truth. An unsatisfied `requires` is, by contrast, a statement about the world; Product can only report it.
 
 **Status update rules:**
 - All runnable TCs pass → feature status → `complete`
@@ -238,6 +251,7 @@ These scripts make the composition explicit and learnable without Product owning
 - Prerequisites as shell commands in `product.toml` are the right model. They are: declarative (the developer describes what must be true), checkable (Product can evaluate them with a subprocess call), and external (the shell command can call any tool the developer controls). Product does not need to understand what the prerequisite means — only whether it is satisfied.
 - The boundary is `product verify`. Everything before it (preflight, gap check, context assembly) is graph knowledge. Everything after it (agent work) is the harness's domain. `product verify` is on the Product side because it writes back to the graph — TC status, feature status, checklist — which are Product-owned artifacts.
 - Example harness scripts in `scripts/harness/` solve the discoverability problem without coupling. A developer opening the repo for the first time can read `implement.sh` and immediately understand how the commands compose. Product's correctness does not depend on the scripts.
+- The five-gate enforcement of runner-config presence (FT-058) is defense in depth, not redundancy. Each gate covers a distinct failure mode: `feature status` catches the developer who forgets at promotion time; `request apply` catches the same intent expressed as a YAML mutation; `preflight` catches drift introduced after promotion but before the agent runs; `verify` catches it at the last possible moment before claiming the feature is complete; and `graph check` catches manual edits that bypass every other gate. The check is one pure predicate (`tc::runner_required::find_offenders`) called from five places — there is exactly one rule, evaluated in five contexts.
 
 **Rejected alternatives:**
 - **`product implement` as an orchestration command** — conflates knowledge provision with agent lifecycle. Rejected (see context above).
@@ -246,3 +260,4 @@ These scripts make the composition explicit and learnable without Product owning
 - **No `requires` field** — TCs that cannot run in the current environment fail or are skipped arbitrarily. The `unrunnable` status with a named prerequisite produces honest, debuggable output. Rejected as insufficient.
 - **No example scripts** — leaves developers without guidance on how commands compose. Rejected as insufficient.
 - **Scripts inside the CLI binary** — harness logic in the binary. Rejected: scripts belong in the repo, not the binary.
+- **Soft-skip for TCs without a `runner` field** — the original ADR-021 contract: every missing-runner TC reported `UNIMPLEMENTED` and the verify run continued, with the rule "do not block feature completion". In practice (FT-058 retrospect) this let features stay perpetually `in-progress` because the missing-runner TC was never surfaced as a configuration error — `verify` could only report the outcome of the runs it actually performed. The new rule blocks feature promotion at five gates when runner config is missing for an active feature. The soft-skip behaviour is preserved only for `planned`/`abandoned` features so authoring TCs ahead of implementation continues to work. Rejected as the universal rule; preserved as the planning-stage rule.

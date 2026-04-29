@@ -11,8 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_530_session_harness_exposes_documented_api_surface
-last-run: 2026-04-22T12:59:08.455929045+00:00
-last-run-duration: 0.3s
+last-run: 2026-04-28T17:17:56.374243242+00:00
+last-run-duration: 0.2s
 ---
 
 ## Description

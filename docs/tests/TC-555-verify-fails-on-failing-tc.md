@@ -12,8 +12,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_555_verify_fails_on_failing_tc
-last-run: 2026-04-18T10:54:35.903075401+00:00
-last-run-duration: 0.2s
+last-run: 2026-04-28T17:18:11.333024438+00:00
+last-run-duration: 0.3s
 ---
 
 ## Session: ST-113 — verify-fails-on-failing-tc

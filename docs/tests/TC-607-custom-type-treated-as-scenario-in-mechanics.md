@@ -11,8 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: "tc_607_custom_type_treated_as_scenario_in_mechanics"
-last-run: 2026-04-20T08:00:23.695686320+00:00
-last-run-duration: 0.2s
+last-run: 2026-04-28T17:18:24.403922937+00:00
+last-run-duration: 0.3s
 ---
 
 ## Session: ST-186 — custom-type-treated-as-scenario-in-mechanics

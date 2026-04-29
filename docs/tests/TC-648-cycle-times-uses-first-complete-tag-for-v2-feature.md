@@ -12,8 +12,8 @@ validates:
 phase: 5
 runner: cargo-test
 runner-args: tc_648_cycle_times_uses_first_complete_tag_for_v2_features
-last-run: 2026-04-21T13:48:57.409699651+00:00
-last-run-duration: 0.6s
+last-run: 2026-04-28T17:18:35.823456220+00:00
+last-run-duration: 0.4s
 ---
 
 ## TC — cycle-times uses the first `complete` tag, not the most recent `complete-vN` (invariant)

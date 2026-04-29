@@ -11,7 +11,7 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: "tc_681_feature_body_parser_recognizes_functional_specification_section"
-last-run: 2026-04-28T09:40:00.861945226+00:00
+last-run: 2026-04-28T17:18:43.768781364+00:00
 last-run-duration: 0.2s
 ---
 

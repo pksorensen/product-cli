@@ -11,8 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: "tc_174_seed_creates_adr_files_with_correct_front_matter"
-last-run: 2026-04-18T10:41:58.940827843+00:00
-last-run-duration: 0.2s
+last-run: 2026-04-28T17:17:27.967937293+00:00
+last-run-duration: 0.6s
 ---
 
 ## Description

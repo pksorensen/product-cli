@@ -11,7 +11,7 @@ validates:
 phase: 3
 runner: cargo-test
 runner-args: tc_663_slice_adapter_structural_invariants
-last-run: 2026-04-21T13:48:57.409699651+00:00
+last-run: 2026-04-28T17:18:35.823456220+00:00
 last-run-duration: 0.3s
 ---
 

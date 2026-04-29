@@ -11,6 +11,8 @@ validates:
 phase: 5
 runner: cargo-test
 runner-args: "tc_703_product_init_emits_canonical_product_layout"
+last-run: 2026-04-28T17:18:49.837029585+00:00
+last-run-duration: 0.3s
 ---
 
 **Test Type:** scenario

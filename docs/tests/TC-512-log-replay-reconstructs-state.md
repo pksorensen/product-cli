@@ -11,8 +11,8 @@ validates:
 phase: 5
 runner: cargo-test
 runner-args: tc_512_log_replay_reconstructs_state
-last-run: 2026-04-18T10:42:11.121063959+00:00
-last-run-duration: 0.3s
+last-run: 2026-04-28T17:17:49.623616813+00:00
+last-run-duration: 0.4s
 ---
 
 ## Description

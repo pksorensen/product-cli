@@ -11,8 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_503_process_killed_mid_apply_leaves_recoverable_state
-last-run: 2026-04-18T10:42:07.406621710+00:00
-last-run-duration: 0.2s
+last-run: 2026-04-28T17:17:43.112648128+00:00
+last-run-duration: 0.3s
 ---
 
 Validates FT-041 / ADR-038 decision 10 under adversarial conditions (chaos).

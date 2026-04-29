@@ -11,8 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: "tc_364_feature_link_interactive_decline"
-last-run: 2026-04-18T10:41:58.940827843+00:00
-last-run-duration: 0.2s
+last-run: 2026-04-28T17:17:27.967937293+00:00
+last-run-duration: 0.4s
 ---
 
 decline the interactive TC link prompt. Assert only the ADR link is applied. Assert TC files unchanged.

@@ -11,8 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: "tc_470_all_field_mutation_tools_are_idempotent"
-last-run: 2026-04-18T10:42:03.345580667+00:00
-last-run-duration: 0.4s
+last-run: 2026-04-28T17:17:38.553838845+00:00
+last-run-duration: 0.6s
 ---
 
 ⟦Γ:Invariants⟧{

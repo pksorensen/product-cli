@@ -11,8 +11,8 @@ validates:
 phase: 5
 runner: cargo-test
 runner-args: tc_518_log_cross_ref_tags_detects_truncation
-last-run: 2026-04-18T10:42:11.121063959+00:00
-last-run-duration: 0.2s
+last-run: 2026-04-28T17:17:49.623616813+00:00
+last-run-duration: 0.3s
 ---
 
 ## Description

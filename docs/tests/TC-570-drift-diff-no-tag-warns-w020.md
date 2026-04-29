@@ -12,8 +12,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_570_drift_diff_no_tag_warns_w020
-last-run: 2026-04-18T14:07:23.114790413+00:00
-last-run-duration: 0.2s
+last-run: 2026-04-28T17:18:15.123973165+00:00
+last-run-duration: 0.3s
 ---
 
 ## Session: ST-127 — drift-diff-no-tag-warns-w020

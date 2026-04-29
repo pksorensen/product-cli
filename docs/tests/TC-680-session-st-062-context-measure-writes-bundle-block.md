@@ -13,8 +13,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_680_session_st_062_context_measure_writes_bundle_block
-last-run: 2026-04-22T12:59:08.455929045+00:00
-last-run-duration: 0.2s
+last-run: 2026-04-28T17:17:56.374243242+00:00
+last-run-duration: 0.3s
 ---
 
 Session ST-062 — --measure writes a bundle block (depth-1-adrs, tcs, tokens-approx, measured-at) to feature front-matter.

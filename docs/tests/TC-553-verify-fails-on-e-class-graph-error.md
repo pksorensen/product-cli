@@ -11,8 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_553_verify_fails_on_e_class_graph_error
-last-run: 2026-04-18T10:54:35.903075401+00:00
-last-run-duration: 0.2s
+last-run: 2026-04-28T17:18:11.333024438+00:00
+last-run-duration: 0.3s
 ---
 
 ## Session: ST-111 — verify-fails-on-e-class-graph-error

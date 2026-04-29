@@ -11,8 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: "tc_616_tc_types_system_exit"
-last-run: 2026-04-20T08:00:23.695686320+00:00
-last-run-duration: 0.2s
+last-run: 2026-04-28T17:18:24.403922937+00:00
+last-run-duration: 0.3s
 ---
 
 ## Exit Criteria — FT-048 TC Type System

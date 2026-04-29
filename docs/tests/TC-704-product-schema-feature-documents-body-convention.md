@@ -11,6 +11,8 @@ validates:
 phase: 5
 runner: cargo-test
 runner-args: "schema_feature_documents_body_structure_convention"
+last-run: 2026-04-28T17:18:43.768781364+00:00
+last-run-duration: 0.2s
 ---
 
 **Test Type:** scenario

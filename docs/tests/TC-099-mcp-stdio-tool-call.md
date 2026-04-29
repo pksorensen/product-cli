@@ -11,8 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: "tc_099_mcp_stdio_tool_call"
-last-run: 2026-04-18T10:41:43.286383101+00:00
-last-run-duration: 0.1s
+last-run: 2026-04-28T17:17:03.134785629+00:00
+last-run-duration: 0.2s
 ---
 
 spawn `product mcp` as a subprocess. Send a valid JSON-RPC tool call over stdin. Assert the response on stdout matches the expected MCP tool result format.

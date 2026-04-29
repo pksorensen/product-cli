@@ -11,8 +11,8 @@ validates:
 phase: 5
 runner: cargo-test
 runner-args: tc_647_cycle_times_excludes_features_without_complete_tag
-last-run: 2026-04-21T13:48:57.409699651+00:00
-last-run-duration: 0.6s
+last-run: 2026-04-28T17:18:35.823456220+00:00
+last-run-duration: 0.3s
 ---
 
 ## Session — cycle-times-excludes-features-without-complete-tag
