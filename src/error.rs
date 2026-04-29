@@ -170,6 +170,12 @@ pub enum ProductError {
         feature_id: String,
         proposed_adrs: Vec<String>,
     },
+    /// E022: TC runner configuration missing for an active feature (FT-058 / ADR-021)
+    TcRunnerMissing {
+        feature_id: String,
+        tc_ids: Vec<String>,
+        tc_paths: Vec<PathBuf>,
+    },
     /// Configuration error
     ConfigError(String),
     /// Generic IO error
@@ -205,6 +211,22 @@ impl fmt::Display for ProductError {
                 f, "error[E016]: cannot verify {} — governing ADR(s) not yet accepted: {}",
                 feature_id, proposed_adrs.join(", ")
             ),
+            Self::TcRunnerMissing { feature_id, tc_ids, tc_paths } => {
+                writeln!(f, "error[E022]: TC runner configuration missing")?;
+                for p in tc_paths {
+                    writeln!(f, "  --> {}", p.display())?;
+                }
+                writeln!(
+                    f,
+                    "   = {} TC(s) linked to {} lack `runner` and/or `runner-args`",
+                    tc_ids.len(),
+                    feature_id
+                )?;
+                writeln!(f, "   = hint: add the following to each TC's front-matter:")?;
+                writeln!(f, "            runner: cargo-test")?;
+                writeln!(f, "            runner-args: \"tc_XXX_<snake_case_title>\"")?;
+                write!(f, "   = see ADR-021 §\"TC front-matter fields\" for the full schema")
+            }
             Self::ConfigError(msg) => write!(f, "error: {}", msg),
             Self::IoError(msg) => write!(f, "error: {}", msg),
             Self::NotFound(msg) => write!(f, "error: not found — {}", msg),
@@ -214,6 +236,18 @@ impl fmt::Display for ProductError {
 }
 
 impl std::error::Error for ProductError {}
+
+impl ProductError {
+    /// Exit code for this error variant. Most errors map to 1; specific
+    /// variants carry their own dedicated codes. FT-058 introduced E022 →
+    /// exit 22 for missing TC runner config on active features.
+    pub fn exit_code(&self) -> i32 {
+        match self {
+            Self::TcRunnerMissing { .. } => 22,
+            _ => 1,
+        }
+    }
+}
 
 impl From<std::io::Error> for ProductError {
     fn from(e: std::io::Error) -> Self {

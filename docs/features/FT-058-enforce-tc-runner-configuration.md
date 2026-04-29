@@ -2,12 +2,15 @@
 id: FT-058
 title: Enforce TC Runner Configuration
 phase: 5
-status: planned
+status: in-progress
 depends-on: []
 adrs:
 - ADR-013
 - ADR-021
 - ADR-038
+- ADR-040
+- ADR-018
+- ADR-043
 tests:
 - TC-705
 - TC-706
@@ -19,7 +22,11 @@ tests:
 domains:
 - error-handling
 - testing
-domains-acknowledged: {}
+domains-acknowledged:
+  ADR-041: ADR-041 covers absence TCs and ADR removes/deprecates lifecycle fields. FT-058's invariant applies uniformly to all TC types including absence; the removal/deprecation lifecycle is unaffected by the runner-required rule.
+  ADR-047: ADR-047 governs feature body structure (Description / Functional Specification / Out of scope sections). FT-058's body already conforms; the feature's behaviour does not change body-structure rules.
+  ADR-042: FT-058 governs only the runner/runner-args required-or-optional contract. The TC type system (scenario / invariant / chaos / exit-criteria / absence) is orthogonal — runner config is required regardless of test type.
+  ADR-048: ADR-048 governs the canonical .product/ folder layout. FT-058 introduces no new state files and reads no paths — it adds a pure predicate over the in-memory graph plus error-rendering at five existing gates.
 ---
 
 ## Description
