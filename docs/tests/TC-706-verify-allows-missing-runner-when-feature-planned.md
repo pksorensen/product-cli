@@ -2,13 +2,17 @@
 id: TC-706
 title: verify_allows_missing_runner_when_feature_planned
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-058
   adrs:
   - ADR-021
 phase: 1
+runner: cargo-test
+runner-args: "tc_706_verify_allows_missing_runner_when_feature_planned"
+last-run: 2026-04-29T04:25:48.268455013+00:00
+last-run-duration: 0.2s
 ---
 
 **Test Type:** scenario

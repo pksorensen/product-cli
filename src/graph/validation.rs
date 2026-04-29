@@ -41,6 +41,7 @@ impl KnowledgeGraph {
         self.check_dep_has_adr(&mut result);
         self.check_dep_deprecated_usage(&mut result);
         self.check_dep_broken_links(&mut result, &all_ids);
+        self.check_tc_runner_required(&mut result);
         super::removal_validation::check_all(self, &mut result);
         if let Some(cfg) = config {
             super::removal_validation::check_unknown_tc_types(self, cfg, &mut result);
@@ -278,6 +279,13 @@ impl KnowledgeGraph {
                 push_blocking_tc_warning(result, f, &blocking_tcs);
             }
         }
+    }
+
+    /// E022 (FT-058 / ADR-021): delegate to the dedicated runner-required
+    /// check module — every TC linked to an `in-progress` or `complete`
+    /// feature must carry `runner` and `runner-args`.
+    fn check_tc_runner_required(&self, result: &mut CheckResult) {
+        super::runner_required_validation::check(self, result);
     }
 
     /// W004: Invariant/chaos tests missing formal blocks

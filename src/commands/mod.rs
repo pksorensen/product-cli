@@ -355,7 +355,7 @@ fn dispatch(command: Commands, fmt: &str, cli_command: &mut clap::Command) -> Bo
         Commands::Gap { command } => gap::handle_gap(command, fmt),
         Commands::Implement { id, dry_run, no_verify, headless } => implement::handle_implement(&id, dry_run, no_verify, headless),
         Commands::Verify { id, platform, skip_adr_check, phase, ci } =>
-            implement::handle_verify(id.as_deref(), platform, skip_adr_check, phase, ci),
+            implement::handle_verify(id.as_deref(), platform, skip_adr_check, phase, ci, fmt),
         Commands::Author { command } => author::handle_author(command),
         Commands::Mcp { http, port, bind, token, repo, write } => mcp_cmd::handle_mcp(http, port, &bind, token, repo, write),
         Commands::InstallHooks => hooks::handle_install_hooks(),

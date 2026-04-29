@@ -1146,7 +1146,7 @@
 - [x] TC-702: FT-057 exit criteria (exit-criteria) — passing
 - [x] TC-703: product_init_emits_canonical_product_layout (scenario) — passing
 
-### FT-058 — Enforce TC Runner Configuration [ ]
+### FT-058 — Enforce TC Runner Configuration [x]
 
 - [x] ADR-013: Error Model and User-Facing Error Format (accepted)
 - [x] ADR-021: Implementation Pipeline — `product verify` and the Knowledge Boundary (accepted)
@@ -1154,11 +1154,11 @@
 - [x] ADR-040: Unified Verify Pipeline and the LLM Boundary (accepted)
 - [x] ADR-018: Testing Strategy — Property-Based, Session-Based, and LLM Benchmark (accepted)
 - [x] ADR-043: Slice + Adapter Architecture for Command Handlers (accepted)
-- [!] TC-705: verify_hard_fails_when_in_progress_tc_missing_runner (scenario) — failing
-- [ ] TC-706: verify_allows_missing_runner_when_feature_planned (scenario) — unimplemented
-- [ ] TC-707: graph_check_flags_tc_missing_runner_when_feature_in_progress (scenario) — unimplemented
-- [ ] TC-708: feature_status_transition_to_in_progress_blocked_without_runner (scenario) — unimplemented
-- [ ] TC-709: preflight_fails_when_tc_missing_runner_for_active_feature (scenario) — unimplemented
-- [ ] TC-710: error_lists_all_tcs_missing_runner_in_one_report (scenario) — unimplemented
-- [ ] TC-711: requires_failure_remains_unrunnable_not_hard_fail (scenario) — unimplemented
+- [x] TC-705: verify_hard_fails_when_in_progress_tc_missing_runner (scenario) — passing
+- [x] TC-706: verify_allows_missing_runner_when_feature_planned (scenario) — passing
+- [x] TC-707: graph_check_flags_tc_missing_runner_when_feature_in_progress (scenario) — passing
+- [x] TC-708: feature_status_transition_to_in_progress_blocked_without_runner (scenario) — passing
+- [x] TC-709: preflight_fails_when_tc_missing_runner_for_active_feature (scenario) — passing
+- [x] TC-710: error_lists_all_tcs_missing_runner_in_one_report (scenario) — passing
+- [x] TC-711: requires_failure_remains_unrunnable_not_hard_fail (scenario) — passing
 

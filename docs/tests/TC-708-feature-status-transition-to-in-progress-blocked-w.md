@@ -2,7 +2,7 @@
 id: TC-708
 title: feature_status_transition_to_in_progress_blocked_without_runner
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-058
@@ -10,6 +10,10 @@ validates:
   - ADR-021
   - ADR-038
 phase: 1
+runner: cargo-test
+runner-args: "tc_708_feature_status_transition_to_in_progress_blocked_without_runner"
+last-run: 2026-04-29T04:25:48.268455013+00:00
+last-run-duration: 0.2s
 ---
 
 **Test Type:** scenario

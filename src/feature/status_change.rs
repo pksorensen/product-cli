@@ -27,6 +27,10 @@ pub struct StatusChangePlan {
 
 /// Pure: produce a `StatusChangePlan` from a parsed new status and the current
 /// graph. Returns `NotFound` if the feature isn't in the graph.
+///
+/// FT-058 / E022: when the candidate status is `in-progress` (or the
+/// feature is being moved into any status that requires runner config),
+/// refuse the transition if any linked TC lacks `runner` / `runner-args`.
 pub fn plan_status_change(
     graph: &KnowledgeGraph,
     feature_id: &str,
@@ -36,6 +40,24 @@ pub fn plan_status_change(
         .features
         .get(feature_id)
         .ok_or_else(|| ProductError::NotFound(format!("feature {}", feature_id)))?;
+
+    // FT-058: every feature whose target status requires runner config
+    // must have every linked TC fully configured. Refuse before any I/O.
+    if crate::tc::runner_required::status_requires_runner(new_status) {
+        let offenders =
+            crate::tc::runner_required::find_offenders(graph, feature_id, new_status);
+        if !offenders.is_empty() {
+            let tc_paths: Vec<std::path::PathBuf> = offenders
+                .iter()
+                .filter_map(|id| graph.tests.get(id.as_str()).map(|t| t.path.clone()))
+                .collect();
+            return Err(ProductError::TcRunnerMissing {
+                feature_id: feature_id.to_string(),
+                tc_ids: offenders,
+                tc_paths,
+            });
+        }
+    }
 
     let mut front = feature.front.clone();
     front.status = new_status;

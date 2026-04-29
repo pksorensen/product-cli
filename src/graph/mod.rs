@@ -10,6 +10,7 @@ mod ordering;
 pub mod planning_validation;
 mod removal_validation;
 pub mod responsibility;
+mod runner_required_validation;
 mod stats;
 #[cfg(test)]
 mod tests;

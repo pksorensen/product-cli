@@ -2,16 +2,17 @@
 id: TC-705
 title: verify_hard_fails_when_in_progress_tc_missing_runner
 type: scenario
-status: failing
+status: passing
 validates:
   features:
   - FT-058
   adrs:
   - ADR-021
 phase: 1
-last-run: 2026-04-29T03:53:32.475204176+00:00
-last-run-duration: 28.6s
-failure-message: "No matching test function found (0 tests ran)"
+runner: cargo-test
+runner-args: "tc_705_verify_hard_fails_when_in_progress_tc_missing_runner"
+last-run: 2026-04-29T04:25:48.268455013+00:00
+last-run-duration: 0.2s
 ---
 
 **Test Type:** scenario

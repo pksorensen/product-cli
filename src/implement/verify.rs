@@ -92,6 +92,27 @@ pub fn run_verify(
         }
     }
 
+    // FT-058 / E022: TC runner config is required for active features.
+    // Fail fast before any cargo invocation so the report names every
+    // offender in one pass, not one per run.
+    if crate::tc::runner_required::status_requires_runner(feature.front.status) {
+        let offenders =
+            crate::tc::runner_required::find_offenders(graph, feature_id, feature.front.status);
+        if !offenders.is_empty() {
+            let tc_paths: Vec<std::path::PathBuf> = offenders
+                .iter()
+                .filter_map(|id| graph.tests.get(id.as_str()).map(|t| t.path.clone()))
+                .collect();
+            let err = ProductError::TcRunnerMissing {
+                feature_id: feature_id.to_string(),
+                tc_ids: offenders,
+                tc_paths,
+            };
+            eprintln!("{}", err);
+            return Err(err);
+        }
+    }
+
     let now = chrono::Utc::now().to_rfc3339();
     let tc_ids: Vec<String> = feature.front.tests.clone();
     let r = run_tc_list(&tc_ids, graph, root, config, &now)?;

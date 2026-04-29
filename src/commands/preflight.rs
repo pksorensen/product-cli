@@ -1,13 +1,42 @@
 //! Pre-flight analysis: domain coverage, cross-cutting checks, dependency availability (ADR-030).
 
 use product_lib::domains;
+use product_lib::error::ProductError;
+use product_lib::graph::KnowledgeGraph;
+use product_lib::tc::runner_required;
 use product_lib::types::DependencyStatus;
 use std::process;
 
 use super::{load_graph, BoxResult};
 
+/// FT-058 / E022: refuse preflight when an active feature has any TC
+/// missing runner config — fail before the harness invokes the agent.
+fn check_runner_required(graph: &KnowledgeGraph, id: &str) -> Result<(), ProductError> {
+    let Some(feature) = graph.features.get(id) else {
+        return Ok(());
+    };
+    if !runner_required::status_requires_runner(feature.front.status) {
+        return Ok(());
+    }
+    let offenders = runner_required::find_offenders(graph, id, feature.front.status);
+    if offenders.is_empty() {
+        return Ok(());
+    }
+    let tc_paths: Vec<std::path::PathBuf> = offenders
+        .iter()
+        .filter_map(|tid| graph.tests.get(tid.as_str()).map(|t| t.path.clone()))
+        .collect();
+    Err(ProductError::TcRunnerMissing {
+        feature_id: id.to_string(),
+        tc_ids: offenders,
+        tc_paths,
+    })
+}
+
 pub(crate) fn handle_preflight(id: &str) -> BoxResult {
     let (config, _root, graph) = load_graph()?;
+    check_runner_required(&graph, id)?;
+
     let result = domains::preflight(&graph, id, &config.domains)?;
     print!("{}", domains::render_preflight(&result));
 

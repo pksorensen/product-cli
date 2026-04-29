@@ -212,20 +212,7 @@ impl fmt::Display for ProductError {
                 feature_id, proposed_adrs.join(", ")
             ),
             Self::TcRunnerMissing { feature_id, tc_ids, tc_paths } => {
-                writeln!(f, "error[E022]: TC runner configuration missing")?;
-                for p in tc_paths {
-                    writeln!(f, "  --> {}", p.display())?;
-                }
-                writeln!(
-                    f,
-                    "   = {} TC(s) linked to {} lack `runner` and/or `runner-args`",
-                    tc_ids.len(),
-                    feature_id
-                )?;
-                writeln!(f, "   = hint: add the following to each TC's front-matter:")?;
-                writeln!(f, "            runner: cargo-test")?;
-                writeln!(f, "            runner-args: \"tc_XXX_<snake_case_title>\"")?;
-                write!(f, "   = see ADR-021 §\"TC front-matter fields\" for the full schema")
+                render_tc_runner_missing(f, feature_id, tc_ids, tc_paths)
             }
             Self::ConfigError(msg) => write!(f, "error: {}", msg),
             Self::IoError(msg) => write!(f, "error: {}", msg),
@@ -233,6 +220,31 @@ impl fmt::Display for ProductError {
             Self::Internal(msg) => write!(f, "internal error: {}\n  This is a bug in Product. Please report it.", msg),
         }
     }
+}
+
+fn render_tc_runner_missing(
+    f: &mut fmt::Formatter<'_>,
+    feature_id: &str,
+    tc_ids: &[String],
+    tc_paths: &[PathBuf],
+) -> fmt::Result {
+    writeln!(f, "error[E022]: TC runner configuration missing")?;
+    for p in tc_paths {
+        writeln!(f, "  --> {}", p.display())?;
+    }
+    writeln!(
+        f,
+        "   = {} TC(s) linked to {} lack `runner` and/or `runner-args`",
+        tc_ids.len(),
+        feature_id
+    )?;
+    writeln!(f, "   = hint: add the following to each TC's front-matter:")?;
+    writeln!(f, "            runner: cargo-test")?;
+    writeln!(f, "            runner-args: \"tc_XXX_<snake_case_title>\"")?;
+    write!(
+        f,
+        "   = see ADR-021 §\"TC front-matter fields\" for the full schema"
+    )
 }
 
 impl std::error::Error for ProductError {}

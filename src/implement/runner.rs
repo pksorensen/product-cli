@@ -14,7 +14,7 @@ pub(crate) fn run_tc(runner: &str, args: &str, root: &Path) -> TcResult {
     let start = std::time::Instant::now();
     let result = build_runner_command(runner, args, root).output();
     let duration = start.elapsed().as_secs_f64();
-    interpret_runner_output(result, runner, duration)
+    interpret_runner_output(result, runner, args, duration)
 }
 
 fn build_runner_command(runner: &str, args: &str, root: &Path) -> Command {
@@ -59,12 +59,13 @@ fn add_cleaned_args(cmd: &mut Command, args: &str) {
 fn interpret_runner_output(
     result: std::io::Result<std::process::Output>,
     runner: &str,
+    args: &str,
     duration: f64,
 ) -> TcResult {
     match result {
         Ok(output) if output.status.success() => {
             if runner == "cargo-test" {
-                if let Some(fail) = detect_zero_tests(&output.stdout, duration) {
+                if let Some(fail) = detect_zero_tests(&output.stdout, args, duration) {
                     return fail;
                 }
             }
@@ -79,17 +80,29 @@ fn interpret_runner_output(
     }
 }
 
-fn detect_zero_tests(stdout_bytes: &[u8], duration: f64) -> Option<TcResult> {
+/// FT-058: when cargo reports "0 tests ran", the runner-args almost
+/// certainly point at a function that does not exist. Name the missing
+/// function so the developer can find or write it without re-reading
+/// cargo's output.
+fn detect_zero_tests(stdout_bytes: &[u8], args: &str, duration: f64) -> Option<TcResult> {
     let stdout = String::from_utf8_lossy(stdout_bytes);
     if stdout.contains("0 passed") || stdout.contains("running 0 tests") {
         let ran_any = stdout.lines().any(|line| {
             line.contains("test result: ok.") && !line.contains("0 passed")
         });
         if !ran_any {
-            return Some(TcResult::Fail(
-                duration,
-                "No matching test function found (0 tests ran)".to_string(),
-            ));
+            let cleaned = args
+                .trim()
+                .trim_matches(|c| c == '"' || c == '\'' || c == '[' || c == ']');
+            let msg = if cleaned.is_empty() {
+                "No #[test] fn matching '' found in tests/*.rs — did you forget to add the integration test?".to_string()
+            } else {
+                format!(
+                    "No #[test] fn matching '{}' found in tests/*.rs — did you forget to add the integration test?",
+                    cleaned
+                )
+            };
+            return Some(TcResult::Fail(duration, msg));
         }
     }
     None

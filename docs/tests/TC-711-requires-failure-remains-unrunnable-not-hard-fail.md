@@ -2,13 +2,17 @@
 id: TC-711
 title: requires_failure_remains_unrunnable_not_hard_fail
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-058
   adrs:
   - ADR-021
 phase: 1
+runner: cargo-test
+runner-args: "tc_711_requires_failure_remains_unrunnable_not_hard_fail"
+last-run: 2026-04-29T04:25:48.268455013+00:00
+last-run-duration: 0.2s
 ---
 
 **Test Type:** scenario

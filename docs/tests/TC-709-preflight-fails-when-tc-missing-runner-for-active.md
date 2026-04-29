@@ -2,13 +2,17 @@
 id: TC-709
 title: preflight_fails_when_tc_missing_runner_for_active_feature
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-058
   adrs:
   - ADR-021
 phase: 1
+runner: cargo-test
+runner-args: "tc_709_preflight_fails_when_tc_missing_runner_for_active_feature"
+last-run: 2026-04-29T04:25:48.268455013+00:00
+last-run-duration: 0.3s
 ---
 
 **Test Type:** scenario

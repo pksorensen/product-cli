@@ -44,8 +44,14 @@ fn main() {
 
     let result = commands::run(cli.command, &cli.format, &mut cmd);
     if let Err(e) = result {
+        // FT-058 / E022: route boxed errors through ProductError::exit_code
+        // so TcRunnerMissing exits 22 even from a BoxResult handler.
+        let exit = e
+            .downcast_ref::<product_lib::error::ProductError>()
+            .map(|pe| pe.exit_code())
+            .unwrap_or(1);
         eprintln!("{e}");
-        process::exit(1);
+        process::exit(exit);
     }
 }
 

@@ -2335,22 +2335,22 @@ fn tc_160_ft009_exit_criteria() {
         "---\nid: ADR-001\ntitle: Formal Grammar\nstatus: accepted\nfeatures: [FT-001]\nsupersedes: []\nsuperseded-by: []\n---\n\nDecision body.\n",
     );
 
-    // TC with ⟦Σ:Types⟧ block
+    // TC with ⟦Σ:Types⟧ block (FT-058: in-progress feature → runner config required)
     h.write(
         "docs/tests/TC-001-types.md",
-        "---\nid: TC-001\ntitle: Types block\ntype: scenario\nstatus: passing\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\n---\n\n⟦Σ:Types⟧{\n  Node≜IRI\n  Role≜Leader|Follower|Learner\n}\n\n⟦Ε⟧⟨δ≜0.90;φ≜95;τ≜◊⁺⟩\n",
+        "---\nid: TC-001\ntitle: Types block\ntype: scenario\nstatus: passing\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: cargo-test\nrunner-args: \"tc_001_x\"\n---\n\n⟦Σ:Types⟧{\n  Node≜IRI\n  Role≜Leader|Follower|Learner\n}\n\n⟦Ε⟧⟨δ≜0.90;φ≜95;τ≜◊⁺⟩\n",
     );
 
     // TC with ⟦Γ:Invariants⟧ block
     h.write(
         "docs/tests/TC-002-invariants.md",
-        "---\nid: TC-002\ntitle: Invariants block\ntype: invariant\nstatus: passing\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\n---\n\n⟦Γ:Invariants⟧{\n  ∀s:ClusterState: |{n∈s.nodes | s.roles(n)=Leader}| = 1\n}\n\n⟦Ε⟧⟨δ≜0.85;φ≜80;τ≜◊?⟩\n",
+        "---\nid: TC-002\ntitle: Invariants block\ntype: invariant\nstatus: passing\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: cargo-test\nrunner-args: \"tc_002_x\"\n---\n\n⟦Γ:Invariants⟧{\n  ∀s:ClusterState: |{n∈s.nodes | s.roles(n)=Leader}| = 1\n}\n\n⟦Ε⟧⟨δ≜0.85;φ≜80;τ≜◊?⟩\n",
     );
 
     // TC with ⟦Λ:Scenario⟧ block
     h.write(
         "docs/tests/TC-003-scenario.md",
-        "---\nid: TC-003\ntitle: Scenario block\ntype: scenario\nstatus: passing\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\n---\n\n⟦Λ:Scenario⟧{\n  given≜cluster_init(nodes:3)\n  when≜leader_fails()\n  then≜∃n∈nodes: roles(n)=Leader ∧ n≠old_leader\n}\n\n⟦Ε⟧⟨δ≜0.95;φ≜100;τ≜◊⁺⟩\n",
+        "---\nid: TC-003\ntitle: Scenario block\ntype: scenario\nstatus: passing\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: cargo-test\nrunner-args: \"tc_003_x\"\n---\n\n⟦Λ:Scenario⟧{\n  given≜cluster_init(nodes:3)\n  when≜leader_fails()\n  then≜∃n∈nodes: roles(n)=Leader ∧ n≠old_leader\n}\n\n⟦Ε⟧⟨δ≜0.95;φ≜100;τ≜◊⁺⟩\n",
     );
 
     // 1. Context bundle includes formal blocks from test criteria
@@ -3495,13 +3495,16 @@ fn tc_157_ft016_graph_model_queries_pass() {
         "docs/adrs/ADR-003-new.md",
         "---\nid: ADR-003\ntitle: New Store\nstatus: accepted\nfeatures: [FT-002, FT-003]\nsupersedes: [ADR-002]\nsuperseded-by: []\n---\n\nNew store.\n",
     );
+    // FT-058: TC-001 linked to FT-001 (complete) and TC-002 linked to FT-002
+    // (in-progress) require runner config; TC-003 linked to FT-003 (planned)
+    // is exempt.
     h.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Foundation Test\ntype: scenario\nstatus: passing\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\n---\n\nFoundation test.\n",
+        "---\nid: TC-001\ntitle: Foundation Test\ntype: scenario\nstatus: passing\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: cargo-test\nrunner-args: \"tc_001_x\"\n---\n\nFoundation test.\n",
     );
     h.write(
         "docs/tests/TC-002-test.md",
-        "---\nid: TC-002\ntitle: Middle Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-002]\n  adrs: [ADR-003]\nphase: 1\n---\n\nMiddle test.\n",
+        "---\nid: TC-002\ntitle: Middle Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-002]\n  adrs: [ADR-003]\nphase: 1\nrunner: cargo-test\nrunner-args: \"tc_002_x\"\n---\n\nMiddle test.\n",
     );
     h.write(
         "docs/tests/TC-003-test.md",
@@ -14740,10 +14743,11 @@ fn tc_516_log_migrate_entry_first() {
 #[test]
 fn tc_517_log_verify_entry_on_product_verify() {
     let h = fixture_log();
-    // Seed a feature with a passing TC that is already linked.
+    // Seed a planned feature whose TC has no runner (UNIMPLEMENTED path,
+    // exempt from FT-058 / E022 because the feature is `planned`).
     h.write(
         "docs/features/FT-001-x.md",
-        "---\nid: FT-001\ntitle: X\nphase: 1\nstatus: in-progress\ndepends-on: []\nadrs: []\ntests:\n- TC-001\n---\n\nBody.\n",
+        "---\nid: FT-001\ntitle: X\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests:\n- TC-001\n---\n\nBody.\n",
     );
     // TC with no runner (UNIMPLEMENTED path, any_runnable=false but has_unimplemented=true)
     h.write(
@@ -18567,6 +18571,344 @@ fn tc_699_ft_056_exit_criteria() {
         pipeline_src.contains("crate::author::prompts::get(root,")
             && pipeline_src.contains("\"implement\""),
         "pipeline.rs should source the base prompt via author::prompts::get"
+    );
+}
+
+// ===========================================================================
+// FT-058 — TC Runner Configuration Enforcement (E022)
+// ===========================================================================
+
+/// Helper: write a minimal feature linked to the given TCs.
+fn write_feature_with_tcs(h: &Harness, ft_id: &str, status: &str, tcs: &[&str]) {
+    let tests_list = tcs
+        .iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    h.write(
+        &format!("docs/features/{}-test.md", ft_id),
+        &format!(
+            "---\nid: {}\ntitle: Test Feature\nphase: 1\nstatus: {}\ndepends-on: []\nadrs: [ADR-001]\ntests: [{}]\n---\n\nFeature body.\n",
+            ft_id, status, tests_list
+        ),
+    );
+}
+
+fn write_test_adr(h: &Harness) {
+    h.write(
+        "docs/adrs/ADR-001-test.md",
+        "---\nid: ADR-001\ntitle: Test ADR\nstatus: accepted\nfeatures: [FT-001]\nsupersedes: []\nsuperseded-by: []\n---\n\n**Rejected alternatives:**\n- None\n",
+    );
+}
+
+/// Write a TC with optional runner config.
+fn write_tc(
+    h: &Harness,
+    tc_id: &str,
+    feature: &str,
+    runner: Option<&str>,
+    args: Option<&str>,
+) {
+    let mut fm = format!(
+        "---\nid: {}\ntitle: Test TC {}\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [{}]\n  adrs: [ADR-001]\nphase: 1\n",
+        tc_id, tc_id, feature
+    );
+    if let Some(r) = runner {
+        fm.push_str(&format!("runner: {}\n", r));
+    }
+    if let Some(a) = args {
+        fm.push_str(&format!("runner-args: \"{}\"\n", a));
+    }
+    fm.push_str("---\n\nTest body.\n");
+    h.write(&format!("docs/tests/{}-test.md", tc_id), &fm);
+}
+
+/// TC-705: verify hard-fails when in-progress feature has a TC missing runner.
+#[test]
+fn tc_705_verify_hard_fails_when_in_progress_tc_missing_runner() {
+    let h = Harness::new();
+    write_test_adr(&h);
+    write_feature_with_tcs(&h, "FT-001", "in-progress", &["TC-001", "TC-002"]);
+    write_tc(&h, "TC-001", "FT-001", Some("cargo-test"), Some("tc_001_x"));
+    write_tc(&h, "TC-002", "FT-001", None, None);
+
+    let out = h.run(&["verify", "FT-001"]);
+    out.assert_exit(22);
+    out.assert_stderr_contains("error[E022]");
+    out.assert_stderr_contains("TC runner configuration missing");
+    // Names the offender, not the well-formed TC.
+    assert!(
+        out.stderr.contains("TC-002"),
+        "stderr should name the offending TC-002.\nstderr: {}",
+        out.stderr
+    );
+    assert!(
+        !out.stderr.contains("TC-001 "),
+        "stderr should not flag the well-formed TC-001.\nstderr: {}",
+        out.stderr
+    );
+    // Fix snippet present.
+    out.assert_stderr_contains("runner: cargo-test");
+    out.assert_stderr_contains("runner-args:");
+
+    // Feature status remains in-progress (no writes).
+    let feature_content = h.read("docs/features/FT-001-test.md");
+    assert!(
+        feature_content.contains("status: in-progress"),
+        "Feature status should remain in-progress.\nContent: {}",
+        feature_content
+    );
+}
+
+/// TC-706: verify allows missing runner when feature is planned (or abandoned).
+#[test]
+fn tc_706_verify_allows_missing_runner_when_feature_planned() {
+    let h = Harness::new();
+    write_test_adr(&h);
+    write_feature_with_tcs(&h, "FT-001", "planned", &["TC-001"]);
+    write_tc(&h, "TC-001", "FT-001", None, None);
+
+    let out = h.run(&["verify", "FT-001"]);
+    out.assert_exit(0);
+    out.assert_stdout_contains("UNIMPLEMENTED");
+    assert!(
+        !out.stderr.contains("error[E022]"),
+        "stderr must not contain E022 for planned features.\nstderr: {}",
+        out.stderr
+    );
+
+    // Now mutate to abandoned and re-run — also exempt.
+    write_feature_with_tcs(&h, "FT-001", "abandoned", &["TC-001"]);
+    let out2 = h.run(&["verify", "FT-001"]);
+    assert!(
+        !out2.stderr.contains("error[E022]"),
+        "stderr must not contain E022 for abandoned features.\nstderr: {}",
+        out2.stderr
+    );
+}
+
+/// TC-707: graph check flags TC missing runner when feature is in-progress
+/// or complete; exempts planned features.
+#[test]
+fn tc_707_graph_check_flags_tc_missing_runner_when_feature_in_progress() {
+    let h = Harness::new();
+    write_test_adr(&h);
+    // FT-001 in-progress, TC-002 missing runner.
+    write_feature_with_tcs(&h, "FT-001", "in-progress", &["TC-001", "TC-002"]);
+    write_tc(&h, "TC-001", "FT-001", Some("cargo-test"), Some("tc_001_x"));
+    write_tc(&h, "TC-002", "FT-001", None, None);
+    // FT-002 complete, TC-003 missing runner.
+    h.write(
+        "docs/features/FT-002-c.md",
+        "---\nid: FT-002\ntitle: Done\nphase: 1\nstatus: complete\ndepends-on: []\nadrs: [ADR-001]\ntests: [TC-003]\n---\n\nBody.\n",
+    );
+    write_tc(&h, "TC-003", "FT-002", None, None);
+    // FT-003 planned, TC-004 missing runner — exempt.
+    h.write(
+        "docs/features/FT-003-p.md",
+        "---\nid: FT-003\ntitle: Planned\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: [ADR-001]\ntests: [TC-004]\n---\n\nBody.\n",
+    );
+    write_tc(&h, "TC-004", "FT-003", None, None);
+
+    let out = h.run(&["graph", "check"]);
+    out.assert_exit(1);
+    // E022 fires at least twice — once per offender that matters.
+    let e022_count = out.stderr.matches("E022").count();
+    assert!(
+        e022_count >= 2,
+        "expected at least 2 E022 findings (TC-002, TC-003), got {}.\nstderr: {}",
+        e022_count,
+        out.stderr
+    );
+    assert!(
+        out.stderr.contains("TC-002"),
+        "stderr must name TC-002.\nstderr: {}",
+        out.stderr
+    );
+    assert!(
+        out.stderr.contains("TC-003"),
+        "stderr must name TC-003.\nstderr: {}",
+        out.stderr
+    );
+    // TC-004 belongs to a planned feature — exempt.
+    assert!(
+        !out.stderr.contains("TC-004 (linked to FT-003)"),
+        "TC-004 (linked to planned feature) must not be flagged.\nstderr: {}",
+        out.stderr
+    );
+
+    // JSON form: E022 findings appear in errors[] array.
+    let json_out = h.run(&["graph", "check", "--format", "json"]);
+    assert_eq!(json_out.exit_code, 1, "stderr: {}", json_out.stderr);
+    let parsed: serde_json::Value =
+        serde_json::from_str(&json_out.stdout).expect("valid JSON");
+    let errors = parsed["errors"].as_array().expect("errors array");
+    let e022_entries: Vec<_> = errors
+        .iter()
+        .filter(|e| e["code"].as_str() == Some("E022"))
+        .collect();
+    assert!(
+        e022_entries.len() >= 2,
+        "expected at least 2 E022 entries in JSON, got {}",
+        e022_entries.len()
+    );
+}
+
+/// TC-708: feature status transition to in-progress is blocked when any
+/// linked TC lacks runner config (both CLI route and request route).
+#[test]
+fn tc_708_feature_status_transition_to_in_progress_blocked_without_runner() {
+    let h = Harness::new();
+    write_test_adr(&h);
+    write_feature_with_tcs(&h, "FT-001", "planned", &["TC-001", "TC-002"]);
+    write_tc(&h, "TC-001", "FT-001", Some("cargo-test"), Some("tc_001_x"));
+    write_tc(&h, "TC-002", "FT-001", None, None);
+
+    // CLI route — feature status FT-001 in-progress
+    let out = h.run(&["feature", "status", "FT-001", "in-progress"]);
+    out.assert_exit(22);
+    out.assert_stderr_contains("error[E022]");
+    out.assert_stderr_contains("TC-002");
+
+    // Status remains planned.
+    let f = h.read("docs/features/FT-001-test.md");
+    assert!(
+        f.contains("status: planned"),
+        "Feature status must remain planned after rejected transition.\nContent: {}",
+        f
+    );
+
+    // Recovery: configure runner on TC-002 then retry.
+    write_tc(&h, "TC-002", "FT-001", Some("cargo-test"), Some("tc_002_x"));
+    let out2 = h.run(&["feature", "status", "FT-001", "in-progress"]);
+    out2.assert_exit(0);
+    let f2 = h.read("docs/features/FT-001-test.md");
+    assert!(
+        f2.contains("status: in-progress"),
+        "Feature status must be in-progress after recovery.\nContent: {}",
+        f2
+    );
+}
+
+/// TC-709: preflight fails when an active feature has any TC missing runner.
+#[test]
+fn tc_709_preflight_fails_when_tc_missing_runner_for_active_feature() {
+    let h = Harness::new();
+    write_test_adr(&h);
+    write_feature_with_tcs(&h, "FT-001", "in-progress", &["TC-001", "TC-002"]);
+    write_tc(&h, "TC-001", "FT-001", Some("cargo-test"), Some("tc_001_x"));
+    write_tc(&h, "TC-002", "FT-001", None, None);
+
+    let out = h.run(&["preflight", "FT-001"]);
+    out.assert_exit(22);
+    out.assert_stderr_contains("error[E022]");
+    out.assert_stderr_contains("TC-002");
+
+    // Mutate to planned — preflight no longer fires E022.
+    write_feature_with_tcs(&h, "FT-001", "planned", &["TC-001", "TC-002"]);
+    let out2 = h.run(&["preflight", "FT-001"]);
+    assert!(
+        !out2.stderr.contains("error[E022]"),
+        "preflight must not emit E022 for planned features.\nstderr: {}",
+        out2.stderr
+    );
+}
+
+/// TC-710: error lists all TCs missing runner in one report — JSON shape
+/// pinned and TCs reported deterministically.
+#[test]
+fn tc_710_error_lists_all_tcs_missing_runner_in_one_report() {
+    let h = Harness::new();
+    write_test_adr(&h);
+    write_feature_with_tcs(
+        &h,
+        "FT-001",
+        "in-progress",
+        &["TC-001", "TC-002", "TC-003", "TC-004"],
+    );
+    write_tc(&h, "TC-001", "FT-001", Some("cargo-test"), Some("tc_001_x"));
+    write_tc(&h, "TC-002", "FT-001", None, None); // both missing
+    write_tc(&h, "TC-003", "FT-001", Some("cargo-test"), None); // args missing
+    write_tc(&h, "TC-004", "FT-001", None, Some("tc_004_x")); // runner missing
+
+    // JSON form
+    let json_out = h.run(&["--format", "json", "verify", "FT-001"]);
+    json_out.assert_exit(22);
+    let parsed: serde_json::Value =
+        serde_json::from_str(&json_out.stdout).expect("valid JSON");
+    assert_eq!(parsed["error"], "E022");
+    assert_eq!(parsed["feature_id"], "FT-001");
+    let tc_ids: Vec<String> = parsed["tc_ids"]
+        .as_array()
+        .expect("tc_ids array")
+        .iter()
+        .map(|v| v.as_str().unwrap_or("").to_string())
+        .collect();
+    assert_eq!(
+        tc_ids,
+        vec![
+            "TC-002".to_string(),
+            "TC-003".to_string(),
+            "TC-004".to_string()
+        ],
+        "tc_ids must be sorted and exclude well-formed TC-001"
+    );
+
+    // Text form names all three with one summary line.
+    let text_out = h.run(&["verify", "FT-001"]);
+    text_out.assert_exit(22);
+    assert!(text_out.stderr.contains("TC-002"));
+    assert!(text_out.stderr.contains("TC-003"));
+    assert!(text_out.stderr.contains("TC-004"));
+    assert!(
+        text_out.stderr.contains("3 TC(s)"),
+        "summary line should report 3 offenders.\nstderr: {}",
+        text_out.stderr
+    );
+}
+
+/// TC-711: a TC with runner configured but a failing `requires` prerequisite
+/// remains `unrunnable` — it is NOT promoted to E022.
+#[test]
+fn tc_711_requires_failure_remains_unrunnable_not_hard_fail() {
+    let h = Harness::new();
+    // Add a prerequisite that will always fail.
+    let cfg = std::fs::read_to_string(h.dir.path().join("product.toml"))
+        .expect("read config");
+    let cfg2 = format!(
+        "{}\n[verify.prerequisites]\nnonexistent = \"false\"\n",
+        cfg
+    );
+    std::fs::write(h.dir.path().join("product.toml"), cfg2).expect("write config");
+
+    write_test_adr(&h);
+    write_feature_with_tcs(&h, "FT-001", "in-progress", &["TC-001"]);
+    // Build TC-001 with valid runner config + requires
+    h.write(
+        "docs/tests/TC-001-test.md",
+        "---\nid: TC-001\ntitle: Has prereq\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: cargo-test\nrunner-args: \"tc_001_x\"\nrequires: [nonexistent]\n---\n\nTest body.\n",
+    );
+
+    let out = h.run(&["verify", "FT-001"]);
+    // Exit code is NOT 22 — this is the soft path.
+    assert_ne!(
+        out.exit_code, 22,
+        "requires-failure must not produce exit 22.\nstdout: {}\nstderr: {}",
+        out.stdout, out.stderr
+    );
+    out.assert_stdout_contains("UNRUNNABLE");
+    assert!(
+        !out.stderr.contains("error[E022]"),
+        "stderr must not contain E022 for unsatisfied prerequisite.\nstderr: {}",
+        out.stderr
+    );
+
+    // Update path: TC marked unrunnable in front-matter.
+    let tc_content = h.read("docs/tests/TC-001-test.md");
+    assert!(
+        tc_content.contains("status: unrunnable"),
+        "TC must be marked unrunnable.\nContent: {}",
+        tc_content
     );
 }
 

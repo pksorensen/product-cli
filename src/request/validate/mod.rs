@@ -28,7 +28,62 @@ pub fn validate_request(request: &Request, ctx: &ValidationContext<'_>) -> Vec<F
     for c in &request.changes {
         changes::validate_change(c, &refs, ctx, &mut findings);
     }
+    // FT-058 / E022: any change that promotes a feature into a status
+    // requiring runner config must carry it for every linked TC.
+    check_tc_runner_required_on_status_change(request, ctx, &mut findings);
     findings
+}
+
+/// FT-058 / E022 — refuse a `set status: in-progress|complete` mutation
+/// when the target feature's linked TCs lack runner config.
+fn check_tc_runner_required_on_status_change(
+    request: &Request,
+    ctx: &ValidationContext<'_>,
+    findings: &mut Vec<Finding>,
+) {
+    use crate::tc::runner_required;
+    use crate::types::FeatureStatus;
+    use serde_yaml::Value;
+    use std::str::FromStr;
+
+    for c in &request.changes {
+        // Only existing-graph targets; refs to artifacts created in the
+        // same request would not yet have linked TCs anyway.
+        if c.target.starts_with("ref:") {
+            continue;
+        }
+        if !ctx.graph.features.contains_key(&c.target) {
+            continue;
+        }
+        for m in &c.mutations {
+            if m.field.trim() != "status" {
+                continue;
+            }
+            let MutationOp::Set = m.op else { continue };
+            let Some(Value::String(s)) = &m.value else { continue };
+            let Ok(target_status) = FeatureStatus::from_str(s.trim()) else {
+                continue;
+            };
+            if !runner_required::status_requires_runner(target_status) {
+                continue;
+            }
+            let offenders =
+                runner_required::find_offenders(ctx.graph, &c.target, target_status);
+            if offenders.is_empty() {
+                continue;
+            }
+            findings.push(Finding::error(
+                "E022",
+                format!(
+                    "TC runner configuration missing — {} TC(s) linked to {} lack `runner` and/or `runner-args`: {}",
+                    offenders.len(),
+                    c.target,
+                    offenders.join(", "),
+                ),
+                format!("$.changes[{}].mutations[{}].value", c.index, m.index),
+            ));
+        }
+    }
 }
 
 fn check_reason(request: &Request, findings: &mut Vec<Finding>) {

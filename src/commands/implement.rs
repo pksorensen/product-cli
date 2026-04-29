@@ -1,5 +1,6 @@
 //! Implement pipeline, verify test criteria.
 
+use product_lib::error::ProductError;
 use product_lib::{implement, verify::pipeline};
 use std::process;
 
@@ -17,6 +18,7 @@ pub(crate) fn handle_verify(
     skip_adr_check: bool,
     phase: Option<u32>,
     ci: bool,
+    format: &str,
 ) -> BoxResult {
     let _lock = acquire_write_lock()?;
     let (config, root, graph) = load_graph()?;
@@ -32,8 +34,29 @@ pub(crate) fn handle_verify(
 
     // Per-feature form: positional argument — preserves ADR-021 behaviour.
     if let Some(feature_id) = id {
-        implement::run_verify(feature_id, &config, &root, &graph, skip_adr_check)?;
-        return Ok(());
+        match implement::run_verify(feature_id, &config, &root, &graph, skip_adr_check) {
+            Ok(()) => return Ok(()),
+            Err(err) => {
+                // FT-058 / E022: emit structured JSON to stdout when the
+                // caller asked for JSON output, and exit 22.
+                if let ProductError::TcRunnerMissing {
+                    feature_id: fid,
+                    tc_ids,
+                    ..
+                } = &err
+                {
+                    if format == "json" || ci {
+                        let json = serde_json::json!({
+                            "error": "E022",
+                            "feature_id": fid,
+                            "tc_ids": tc_ids,
+                        });
+                        println!("{}", json);
+                    }
+                }
+                return Err(Box::new(err));
+            }
+        }
     }
 
     // Unified pipeline (FT-044, ADR-040).

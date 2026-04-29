@@ -2,13 +2,17 @@
 id: TC-707
 title: graph_check_flags_tc_missing_runner_when_feature_in_progress
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-058
   adrs:
   - ADR-021
 phase: 1
+runner: cargo-test
+runner-args: "tc_707_graph_check_flags_tc_missing_runner_when_feature_in_progress"
+last-run: 2026-04-29T04:25:48.268455013+00:00
+last-run-duration: 0.2s
 ---
 
 **Test Type:** scenario
