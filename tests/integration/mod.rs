@@ -6016,11 +6016,11 @@ fn fixture_verify_passing() -> Harness {
     );
     h.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: pass.sh\n---\n\nTest body.\n",
+        "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./pass.sh\n---\n\nTest body.\n",
     );
     h.write(
         "docs/tests/TC-002-test.md",
-        "---\nid: TC-002\ntitle: Test Two\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: pass2.sh\n---\n\nTest body.\n",
+        "---\nid: TC-002\ntitle: Test Two\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./pass2.sh\n---\n\nTest body.\n",
     );
     // Passing test scripts
     h.write("pass.sh", "#!/bin/bash\nexit 0\n");
@@ -6139,11 +6139,11 @@ fn tc_112_verify_one_fail_keeps_in_progress() {
     );
     h.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Pass Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: pass.sh\n---\n\nTest body.\n",
+        "---\nid: TC-001\ntitle: Pass Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./pass.sh\n---\n\nTest body.\n",
     );
     h.write(
         "docs/tests/TC-002-test.md",
-        "---\nid: TC-002\ntitle: Fail Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: fail.sh\n---\n\nTest body.\n",
+        "---\nid: TC-002\ntitle: Fail Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./fail.sh\n---\n\nTest body.\n",
     );
     h.write("pass.sh", "#!/bin/bash\nexit 0\n");
     h.write("fail.sh", "#!/bin/bash\necho 'assertion failed' >&2\nexit 1\n");
@@ -6239,11 +6239,11 @@ fn tc_114_verify_updates_frontmatter() {
     );
     h.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Pass Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: pass.sh\n---\n\nTest body.\n",
+        "---\nid: TC-001\ntitle: Pass Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./pass.sh\n---\n\nTest body.\n",
     );
     h.write(
         "docs/tests/TC-002-test.md",
-        "---\nid: TC-002\ntitle: Fail Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: fail.sh\n---\n\nTest body.\n",
+        "---\nid: TC-002\ntitle: Fail Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./fail.sh\n---\n\nTest body.\n",
     );
     h.write("pass.sh", "#!/bin/bash\nexit 0\n");
     h.write("fail.sh", "#!/bin/bash\necho 'assertion failed: expected 42' >&2\nexit 1\n");
@@ -6276,6 +6276,64 @@ fn tc_114_verify_updates_frontmatter() {
         "Failing TC should have failure-message.\nContent: {}",
         tc2
     );
+}
+
+/// Regression: bash runner must execute its args as an inline shell command
+/// (`bash -c "..."`), not interpret them as a script file path. Also asserts
+/// that the resulting failure-message stays valid YAML — bash error output
+/// contains a trailing newline, which previously broke the front-matter on
+/// re-parse and prevented subsequent verify runs from updating the TC.
+#[test]
+fn tc_114b_verify_bash_inline_command_and_yaml_safe_failure() {
+    let h = Harness::new();
+    h.write(
+        "docs/features/FT-001-test.md",
+        "---\nid: FT-001\ntitle: Test Feature\nphase: 1\nstatus: in-progress\ndepends-on: []\nadrs: [ADR-001]\ntests: [TC-001, TC-002]\n---\n\nFeature body.\n",
+    );
+    h.write(
+        "docs/adrs/ADR-001-test.md",
+        "---\nid: ADR-001\ntitle: Test ADR\nstatus: accepted\nfeatures: [FT-001]\nsupersedes: []\nsuperseded-by: []\n---\n\n**Rejected alternatives:**\n- None\n",
+    );
+    // Inline shell command with a pipeline and an internal "-quoted" arg —
+    // would fail under the old `bash <script>` invocation.
+    h.write(
+        "docs/tests/TC-001-test.md",
+        "---\nid: TC-001\ntitle: Pass Inline\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: echo \"hello world\" | grep hello\n---\n\nTest body.\n",
+    );
+    // Inline command that fails — previously bash printed a "No such file or
+    // directory" error containing a literal newline, which corrupted the YAML.
+    h.write(
+        "docs/tests/TC-002-test.md",
+        "---\nid: TC-002\ntitle: Fail Inline\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: printf 'line1\\nline2\\n' >&2; exit 1\n---\n\nTest body.\n",
+    );
+    h.run(&["verify", "FT-001"]).assert_exit(0);
+
+    // TC-001 must pass: pipeline + internal quotes succeeded.
+    let tc1 = h.read("docs/tests/TC-001-test.md");
+    assert!(
+        tc1.contains("status: passing"),
+        "Inline shell command should pass.\nContent: {}",
+        tc1
+    );
+
+    // TC-002 fails. Re-running verify must re-parse the file successfully,
+    // which proves the failure-message YAML is well-formed (no embedded
+    // literal newline closing the scalar prematurely).
+    let tc2_first = h.read("docs/tests/TC-002-test.md");
+    assert!(
+        tc2_first.contains("status: failing") && tc2_first.contains("failure-message:"),
+        "Failing TC should record failure-message.\nContent: {}",
+        tc2_first
+    );
+    assert!(
+        !tc2_first.contains("\n\"\n---"),
+        "failure-message must not leave an orphan closing quote on its own line — the value would be malformed YAML.\nContent: {}",
+        tc2_first
+    );
+
+    // Second run: must succeed (no E001 parse error). If the YAML were
+    // malformed, the graph load would fail and verify would error out.
+    h.run(&["verify", "FT-001"]).assert_exit(0);
 }
 
 /// TC-115: verify_regenerates_checklist
@@ -6345,7 +6403,7 @@ fn tc_167_ft_023_implement_and_verify_orchestrate() {
     );
     h3.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Failing Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: fail.sh\n---\n\nTest body.\n",
+        "---\nid: TC-001\ntitle: Failing Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./fail.sh\n---\n\nTest body.\n",
     );
     h3.write("fail.sh", "#!/bin/bash\nexit 1\n");
     std::process::Command::new("chmod")
@@ -10735,11 +10793,11 @@ fn tc_304_verify_one_fail_in_progress() {
     );
     h.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Pass Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: pass.sh\n---\n\nTest body.\n",
+        "---\nid: TC-001\ntitle: Pass Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./pass.sh\n---\n\nTest body.\n",
     );
     h.write(
         "docs/tests/TC-002-test.md",
-        "---\nid: TC-002\ntitle: Fail Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: fail.sh\n---\n\nTest body.\n",
+        "---\nid: TC-002\ntitle: Fail Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./fail.sh\n---\n\nTest body.\n",
     );
     h.write("pass.sh", "#!/bin/bash\nexit 0\n");
     h.write("fail.sh", "#!/bin/bash\necho 'test assertion failed' >&2\nexit 1\n");
@@ -10815,11 +10873,11 @@ fn tc_306_verify_updates_tc_frontmatter() {
     );
     h.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Pass Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: pass.sh\n---\n\nTest body.\n",
+        "---\nid: TC-001\ntitle: Pass Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./pass.sh\n---\n\nTest body.\n",
     );
     h.write(
         "docs/tests/TC-002-test.md",
-        "---\nid: TC-002\ntitle: Fail Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: fail.sh\n---\n\nTest body.\n",
+        "---\nid: TC-002\ntitle: Fail Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./fail.sh\n---\n\nTest body.\n",
     );
     h.write("pass.sh", "#!/bin/bash\nexit 0\n");
     h.write("fail.sh", "#!/bin/bash\necho 'expected 42 got 0' >&2\nexit 1\n");
@@ -10877,7 +10935,7 @@ fn tc_307_verify_failure_message_written() {
     );
     h.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Fail Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: fail.sh\n---\n\nTest body.\n",
+        "---\nid: TC-001\ntitle: Fail Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./fail.sh\n---\n\nTest body.\n",
     );
     h.write("fail.sh", "#!/bin/bash\necho 'thread panicked at assertion failed: expected 42' >&2\nexit 1\n");
     std::process::Command::new("chmod")
@@ -10923,7 +10981,7 @@ fn tc_309_verify_platform_runs_cross_cutting() {
     );
     h.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Feature Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: pass.sh\n---\n\nFeature test — should NOT run under --platform.\n",
+        "---\nid: TC-001\ntitle: Feature Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./pass.sh\n---\n\nFeature test — should NOT run under --platform.\n",
     );
 
     // Cross-cutting ADR with a TC — should be run by --platform
@@ -10933,7 +10991,7 @@ fn tc_309_verify_platform_runs_cross_cutting() {
     );
     h.write(
         "docs/tests/TC-002-test.md",
-        "---\nid: TC-002\ntitle: Cross-Cutting Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: []\n  adrs: [ADR-002]\nphase: 1\nrunner: bash\nrunner-args: cross_pass.sh\n---\n\nCross-cutting test — should run under --platform.\n",
+        "---\nid: TC-002\ntitle: Cross-Cutting Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: []\n  adrs: [ADR-002]\nphase: 1\nrunner: bash\nrunner-args: ./cross_pass.sh\n---\n\nCross-cutting test — should run under --platform.\n",
     );
     h.write("pass.sh", "#!/bin/bash\nexit 0\n");
     h.write("cross_pass.sh", "#!/bin/bash\nexit 0\n");
@@ -11002,7 +11060,7 @@ binary-compiled = "true"
     );
     h.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Test With Prereq\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: pass.sh\nrequires: [binary-compiled]\n---\n\nTest with satisfied prerequisite.\n",
+        "---\nid: TC-001\ntitle: Test With Prereq\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./pass.sh\nrequires: [binary-compiled]\n---\n\nTest with satisfied prerequisite.\n",
     );
     h.write("pass.sh", "#!/bin/bash\nexit 0\n");
     std::process::Command::new("chmod")
@@ -11063,7 +11121,7 @@ two-node-cluster = "false"
     );
     h.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Cluster Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: pass.sh\nrequires: [two-node-cluster]\n---\n\nTest requiring cluster.\n",
+        "---\nid: TC-001\ntitle: Cluster Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./pass.sh\nrequires: [two-node-cluster]\n---\n\nTest requiring cluster.\n",
     );
     h.write("pass.sh", "#!/bin/bash\nexit 0\n");
     std::process::Command::new("chmod")
@@ -11118,7 +11176,7 @@ fn tc_312_verify_requires_missing_prereq_def() {
     );
     h.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Cluster Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: pass.sh\nrequires: [nonexistent-prereq]\n---\n\nTest requiring undefined prereq.\n",
+        "---\nid: TC-001\ntitle: Cluster Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./pass.sh\nrequires: [nonexistent-prereq]\n---\n\nTest requiring undefined prereq.\n",
     );
     h.write("pass.sh", "#!/bin/bash\nexit 0\n");
     std::process::Command::new("chmod")
@@ -12136,7 +12194,7 @@ fn fixture_lifecycle_gate_proposed() -> Harness {
     );
     h.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: pass.sh\n---\n\nTest body.\n",
+        "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./pass.sh\n---\n\nTest body.\n",
     );
     h.write("pass.sh", "#!/bin/bash\nexit 0\n");
     std::process::Command::new("chmod")
@@ -12197,7 +12255,7 @@ fn tc_441_verify_succeeds_when_all_linked_adrs_are_accepted() {
     );
     h.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: pass.sh\n---\n\nTest body.\n",
+        "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./pass.sh\n---\n\nTest body.\n",
     );
     h.write("pass.sh", "#!/bin/bash\nexit 0\n");
     std::process::Command::new("chmod")
@@ -12361,7 +12419,7 @@ fn tc_445_superseded_and_abandoned_adrs_satisfy_lifecycle_invariant() {
     );
     h.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: pass.sh\n---\n\nTest body.\n",
+        "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./pass.sh\n---\n\nTest body.\n",
     );
     h.write("pass.sh", "#!/bin/bash\nexit 0\n");
     std::process::Command::new("chmod")
@@ -12408,7 +12466,7 @@ fn tc_446_e016_names_all_proposed_adrs_not_just_the_first() {
     );
     h.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: pass.sh\n---\n\nTest body.\n",
+        "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./pass.sh\n---\n\nTest body.\n",
     );
     h.write("pass.sh", "#!/bin/bash\nexit 0\n");
     std::process::Command::new("chmod")
@@ -12444,7 +12502,7 @@ fn tc_447_lifecycle_gate_exit_criteria() {
     );
     h.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: pass.sh\n---\n\nTest body.\n",
+        "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./pass.sh\n---\n\nTest body.\n",
     );
     h.write("pass.sh", "#!/bin/bash\nexit 0\n");
     std::process::Command::new("chmod")
@@ -12503,11 +12561,11 @@ fn fixture_verify_with_git() -> Harness {
     );
     h.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: pass.sh\n---\n\nTest body.\n",
+        "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./pass.sh\n---\n\nTest body.\n",
     );
     h.write(
         "docs/tests/TC-002-test.md",
-        "---\nid: TC-002\ntitle: Test Two\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: pass2.sh\n---\n\nTest body.\n",
+        "---\nid: TC-002\ntitle: Test Two\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./pass2.sh\n---\n\nTest body.\n",
     );
     h.write("pass.sh", "#!/bin/bash\nexit 0\n");
     h.write("pass2.sh", "#!/bin/bash\nexit 0\n");
@@ -12608,7 +12666,7 @@ fn tc_450_verify_skips_tag_outside_git() {
     );
     h.write(
         "docs/tests/TC-001-test.md",
-        "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: pass.sh\n---\n\nTest body.\n",
+        "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\nrunner: bash\nrunner-args: ./pass.sh\n---\n\nTest body.\n",
     );
     h.write("pass.sh", "#!/bin/bash\nexit 0\n");
     std::process::Command::new("chmod")

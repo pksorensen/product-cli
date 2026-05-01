@@ -27,9 +27,9 @@ fn build_runner_command(runner: &str, args: &str, root: &Path) -> Command {
             cmd
         }
         "bash" => {
-            let script = args.trim_matches(|c| c == '"' || c == '\'' || c == '[' || c == ']');
+            let script = strip_balanced_quotes(args);
             let mut cmd = Command::new("bash");
-            cmd.arg(script).current_dir(root);
+            cmd.arg("-c").arg(script).current_dir(root);
             cmd
         }
         "pytest" => {
@@ -54,6 +54,29 @@ fn add_cleaned_args(cmd: &mut Command, args: &str) {
             cmd.arg(arg.trim_matches(|c| c == '"' || c == '\'' || c == '[' || c == ']' || c == ','));
         }
     }
+}
+
+fn strip_balanced_quotes(s: &str) -> &str {
+    let s = s.trim();
+    let bytes = s.as_bytes();
+    if bytes.len() < 2 { return s; }
+    let first = bytes[0];
+    let last = bytes[bytes.len() - 1];
+    if (first == b'"' && last == b'"') || (first == b'\'' && last == b'\'') {
+        &s[1..s.len() - 1]
+    } else {
+        s
+    }
+}
+
+/// Escape a string for use as a YAML double-quoted scalar value.
+/// Order matters: escape backslashes first, then quotes, then control chars.
+fn escape_yaml_double_quoted(s: &str) -> String {
+    s.replace('\\', "\\\\")
+     .replace('"', "\\\"")
+     .replace('\n', "\\n")
+     .replace('\r', "\\r")
+     .replace('\t', "\\t")
 }
 
 fn interpret_runner_output(
@@ -184,7 +207,7 @@ fn rewrite_tc_frontmatter(
 fn inject_missing(lines: &mut Vec<String>, u: &TcUpdate<'_>, st: &mut RwState) {
     if !st.last_run { lines.push(format!("last-run: {}", u.timestamp)); st.last_run = true; }
     if !st.duration { if let Some(d) = u.duration { lines.push(format!("last-run-duration: {:.1}s", d)); } st.duration = true; }
-    if !st.failure { if let Some(msg) = u.failure_msg { lines.push(format!("failure-message: \"{}\"", msg.replace('"', "\\\""))); } st.failure = true; }
+    if !st.failure { if let Some(msg) = u.failure_msg { lines.push(format!("failure-message: \"{}\"", escape_yaml_double_quoted(msg))); } st.failure = true; }
 }
 
 fn rewrite_line(lines: &mut Vec<String>, line: &str, u: &TcUpdate<'_>, st: &mut RwState) {
@@ -198,7 +221,7 @@ fn rewrite_line(lines: &mut Vec<String>, line: &str, u: &TcUpdate<'_>, st: &mut 
         lines.push(format!("last-run: {}", u.timestamp));
         st.last_run = true;
     } else if t.starts_with("failure-message:") {
-        if let Some(msg) = u.failure_msg { lines.push(format!("failure-message: \"{}\"", msg.replace('"', "\\\""))); }
+        if let Some(msg) = u.failure_msg { lines.push(format!("failure-message: \"{}\"", escape_yaml_double_quoted(msg))); }
         st.failure = true;
     } else {
         lines.push(line.to_string());
