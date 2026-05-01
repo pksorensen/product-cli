@@ -17,10 +17,12 @@ tests:
 domains:
 - api
 domains-acknowledged:
+  ADR-043: Implementation adds functions to the existing `src/agent_context/schema.rs` pure module; no new slice or command adapter is introduced.
   ADR-018: Predates the 2026-04-22 scope promotion of ADR-018 to cross-cutting. Test coverage reflects the property/session/benchmark strategy as it existed when this feature shipped; not retroactively reclassified.
   ADR-042: Consumed unchanged — the structural / built-in-descriptive / custom partition from ADR-042 is the source of the "required by" annotations; this feature documents but does not alter the partition.
   ADR-040: Schema render is a read-only documentation surface; it does not participate in the verify pipeline stages and adds no hooks to the LLM boundary beyond the existing agent-context bundle.
-  ADR-043: Implementation adds functions to the existing `src/agent_context/schema.rs` pure module; no new slice or command adapter is introduced.
+  ADR-047: Predates ADR-047; this feature does not author the functional-spec body convention. FT-055 owns the structural validator and W030 mechanics.
+  ADR-048: Predates ADR-048; this feature does not author the canonical .product/ folder layout. FT-057 owns the migration command and discovery fallback.
   ADR-041: The feature documents which tc-types require formal blocks; it does not interact with absence TCs or ADR removes/deprecates lifecycle.
 ---
 
@@ -149,3 +151,41 @@ See TC-619 (exit criteria) for the consolidated check-list.
   manual sync is fine at the current block count.
 - **Live examples from repo TCs.** The schema could pick one real TC per
   block and embed its body fragment as the example. Nice-to-have.
+
+---
+
+## Functional Specification
+
+This feature predates ADR-047. Subsections below are backfilled stubs to satisfy structural completeness; substantive behaviour is documented in the prose above and in the linked ADRs.
+
+### Inputs
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Outputs
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### State
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Behaviour
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Invariants
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Error handling
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Boundaries
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+## Out of scope
+
+Not separately enumerated for this legacy feature; scope boundaries are implicit in the prose above and in the linked ADRs.

@@ -50,11 +50,13 @@ domains:
 - observability
 - security
 domains-acknowledged:
-  ADR-018: Predates the 2026-04-22 scope promotion of ADR-018 to cross-cutting. Test coverage reflects the property/session/benchmark strategy as it existed when this feature shipped; not retroactively reclassified.
-  ADR-041: Pre-dates ADR-041; this feature does not author absence TCs or set removes/deprecates on ADRs. FT-047 owns the mechanics.
-  ADR-043: Predates ADR-043; feature command adapters were written before the slice+adapter pattern was formalised and are not retroactively refactored.
-  ADR-040: predates ADR-040; feature ships independently of the unified verify / LLM-boundary pipeline
   ADR-042: Pre-dates ADR-042; this feature does not define TC types or validate the type vocabulary. FT-048 owns the mechanics.
+  ADR-040: predates ADR-040; feature ships independently of the unified verify / LLM-boundary pipeline
+  ADR-047: Predates ADR-047; this feature does not author the functional-spec body convention. FT-055 owns the structural validator and W030 mechanics.
+  ADR-018: Predates the 2026-04-22 scope promotion of ADR-018 to cross-cutting. Test coverage reflects the property/session/benchmark strategy as it existed when this feature shipped; not retroactively reclassified.
+  ADR-043: Predates ADR-043; feature command adapters were written before the slice+adapter pattern was formalised and are not retroactively refactored.
+  ADR-041: Pre-dates ADR-041; this feature does not author absence TCs or set removes/deprecates on ADRs. FT-047 owns the mechanics.
+  ADR-048: Predates ADR-048; this feature does not author the canonical .product/ folder layout. FT-057 owns the migration command and discovery fallback.
 ---
 
 The Product request log is the committed, hash-chained, tamper-evident audit trail of every graph mutation. It is the append-only record behind `product request apply`, `product request undo`, `product verify`, `product migrate`, and `product migrate schema`, and it is replayable — the same log deterministically reconstructs the graph at any point in its history.
@@ -258,3 +260,45 @@ A user can:
 - **Replay reuses the apply pipeline.** Each entry's `request` is applied to a fresh directory using the same code path as `product request apply`, only with the target root redirected. This is the single biggest correctness invariant — one code path, two drivers (live apply and replay).
 - **Chain re-hash during the `.product/request-log.jsonl` migration.** Old entries lack `prev-hash` / `entry-hash`. Migration walks them in order, sets `prev-hash` from the previous entry, computes `entry-hash`, and writes the result. The final appended `migrate` entry chains off the last re-hashed entry.
 - **Validation codes are pinned at ADR-039 time: E017 (entry hash mismatch), E018 (chain break), W021 (tag without log entry).** They do not collide with ADR-032's E014/E015 or ADR-034's E016. No reconciliation step is required at implementation time.
+
+---
+
+## Description
+
+See existing prose above. This heading is a backfilled stub for ADR-047 structural compliance; the substantive description for this legacy feature lives in the prose preceding this section.
+
+## Functional Specification
+
+This feature predates ADR-047. Subsections below are backfilled stubs to satisfy structural completeness; substantive behaviour is documented in the prose above and in the linked ADRs.
+
+### Inputs
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Outputs
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### State
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Behaviour
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Invariants
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Error handling
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Boundaries
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+## Out of scope
+
+Not separately enumerated for this legacy feature; scope boundaries are implicit in the prose above and in the linked ADRs.

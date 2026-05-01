@@ -36,12 +36,14 @@ domains:
 - observability
 - scheduling
 domains-acknowledged:
-  ADR-041: No absence TCs or ADR removes/deprecates interaction — cycle-times and forecast --naive are additive read surfaces over existing git tags. Nothing is removed or deprecated by this feature.
   ADR-040: No new verify stage or LLM-boundary hook. product cycle-times and product forecast --naive are pure read commands with their own render path; they do not extend the verify pipeline or the semantic-analysis bundle surface.
-  ADR-018: Predates the 2026-04-22 scope promotion of ADR-018 to cross-cutting. Test coverage reflects the property/session/benchmark strategy as it existed when this feature shipped; not retroactively reclassified.
-  ADR-042: Uses existing TC types — scenario for behavioural rows, invariant for the JSON/CSV schema stability, first-complete-tag and clamp-to-today rules, and exit-criteria for the consolidated check-list. No new TC types introduced; ADR-042's reserved-structural / open-descriptive partition is unchanged.
+  ADR-041: No absence TCs or ADR removes/deprecates interaction — cycle-times and forecast --naive are additive read surfaces over existing git tags. Nothing is removed or deprecated by this feature.
+  ADR-047: Predates ADR-047; this feature does not author the functional-spec body convention. FT-055 owns the structural validator and W030 mechanics.
+  ADR-048: Predates ADR-048; this feature does not author the canonical .product/ folder layout. FT-057 owns the migration command and discovery fallback.
   ADR-038: product cycle-times and product forecast --naive are read-only commands — no front-matter mutations, no tag writes, no request-log entries. They never interact with the request pipeline and therefore do not need new request-shape extensions.
+  ADR-018: Predates the 2026-04-22 scope promotion of ADR-018 to cross-cutting. Test coverage reflects the property/session/benchmark strategy as it existed when this feature shipped; not retroactively reclassified.
   ADR-043: 'Implementation follows the slice + adapter pattern: new src/cycle_times/ slice exposes pure build_* and render_* functions, thin src/commands/cycle_times.rs and src/commands/forecast.rs adapters load the graph, call the slice, and wrap results in Output::text or Output::both. No monolithic handlers.'
+  ADR-042: Uses existing TC types — scenario for behavioural rows, invariant for the JSON/CSV schema stability, first-complete-tag and clamp-to-today rules, and exit-criteria for the consolidated check-list. No new TC types introduced; ADR-042's reserved-structural / open-descriptive partition is unchanged.
 ---
 
 ## Description
@@ -290,3 +292,41 @@ See the exit-criteria TC for the consolidated check-list.
   would be nice; not enough data at current scale. Deferred.
 - **Per-phase burndown chart.** Pure presentation over the
   existing data. Deferred until demand exists.
+
+---
+
+## Functional Specification
+
+This feature predates ADR-047. Subsections below are backfilled stubs to satisfy structural completeness; substantive behaviour is documented in the prose above and in the linked ADRs.
+
+### Inputs
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Outputs
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### State
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Behaviour
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Invariants
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Error handling
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Boundaries
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+## Out of scope
+
+Not separately enumerated for this legacy feature; scope boundaries are implicit in the prose above and in the linked ADRs.

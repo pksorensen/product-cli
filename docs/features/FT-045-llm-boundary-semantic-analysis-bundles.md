@@ -35,10 +35,12 @@ domains:
 - error-handling
 - observability
 domains-acknowledged:
-  ADR-041: Pre-dates ADR-041; this feature does not author absence TCs or set removes/deprecates on ADRs. FT-047 owns the mechanics.
   ADR-043: Predates ADR-043; feature command adapters were written before the slice+adapter pattern was formalised and are not retroactively refactored.
+  ADR-041: Pre-dates ADR-041; this feature does not author absence TCs or set removes/deprecates on ADRs. FT-047 owns the mechanics.
   ADR-042: Pre-dates ADR-042; this feature does not define TC types or validate the type vocabulary. FT-048 owns the mechanics.
   ADR-018: Predates the 2026-04-22 scope promotion of ADR-018 to cross-cutting. Test coverage reflects the property/session/benchmark strategy as it existed when this feature shipped; not retroactively reclassified.
+  ADR-048: Predates ADR-048; this feature does not author the canonical .product/ folder layout. FT-057 owns the migration command and discovery fallback.
+  ADR-047: Predates ADR-047; this feature does not author the functional-spec body convention. FT-055 owns the structural validator and W030 mechanics.
 ---
 
 ## Description
@@ -197,3 +199,41 @@ See TC-576 (exit criteria) for the consolidated check-list.
 - **User-side orchestration recipes** — `scripts/harness/gap-analysis.sh` etc., showing idiomatic `product gap bundle ADR-XXX | claude -p gap-analysis-v1 | jq '.findings[]'` compositions. Not required for this feature to ship.
 - **Benchmark refresh.** The existing LLM benchmark (`benchmarks/`) is unchanged by this feature. A follow-on may use the new bundle commands as the input path for the gap and drift dimensions of the benchmark.
 - **Prompt version upgrades.** When a prompt evolves from v1 to v2, emit a W-class warning in `product prompts list` indicating suppressions created under v1 should be re-confirmed. The mechanism already exists for authoring prompts; extend to the new ones.
+
+---
+
+## Functional Specification
+
+This feature predates ADR-047. Subsections below are backfilled stubs to satisfy structural completeness; substantive behaviour is documented in the prose above and in the linked ADRs.
+
+### Inputs
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Outputs
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### State
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Behaviour
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Invariants
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Error handling
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Boundaries
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+## Out of scope
+
+Not separately enumerated for this legacy feature; scope boundaries are implicit in the prose above and in the linked ADRs.

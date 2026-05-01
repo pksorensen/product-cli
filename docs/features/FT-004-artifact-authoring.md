@@ -33,6 +33,7 @@ domains:
 - api
 - data-model
 domains-acknowledged:
+  ADR-048: Predates ADR-048; this feature does not author the canonical .product/ folder layout. FT-057 owns the migration command and discovery fallback.
   api: Authoring commands (feature new, adr new, test new, dep new) define CLI subcommands but the API surface is governed by ADR-002 (front-matter schema) and ADR-005 (ID scheme), both already linked.
   ADR-018: Predates the 2026-04-22 scope promotion of ADR-018 to cross-cutting. Test coverage reflects the property/session/benchmark strategy as it existed when this feature shipped; not retroactively reclassified.
 ---
@@ -67,3 +68,45 @@ product feature status FT-001 complete
 ```
 
 ADR supersession triggers an impact report. Front-matter validation on write — type checking, ID format, unknown fields preserved.
+
+---
+
+## Description
+
+See existing prose above. This heading is a backfilled stub for ADR-047 structural compliance; the substantive description for this legacy feature lives in the prose preceding this section.
+
+## Functional Specification
+
+This feature predates ADR-047. Subsections below are backfilled stubs to satisfy structural completeness; substantive behaviour is documented in the prose above and in the linked ADRs.
+
+### Inputs
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Outputs
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### State
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Behaviour
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Invariants
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Error handling
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Boundaries
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+## Out of scope
+
+Not separately enumerated for this legacy feature; scope boundaries are implicit in the prose above and in the linked ADRs.

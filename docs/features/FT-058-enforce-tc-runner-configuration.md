@@ -19,6 +19,7 @@ tests:
 - TC-709
 - TC-710
 - TC-711
+- TC-716
 domains:
 - error-handling
 - testing

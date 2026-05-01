@@ -27,10 +27,12 @@ domains:
 - api
 - error-handling
 domains-acknowledged:
-  ADR-042: MCP lifecycle parity does not introduce or alter TC types; wiring is orthogonal to the type system.
+  ADR-043: Predates ADR-043; feature command adapters were written before the slice+adapter pattern was formalised and are not retroactively refactored.
   ADR-041: MCP lifecycle parity does not introduce or alter removes/deprecates fields or absence TCs; scope is ADR status/amend transitions only.
   ADR-018: Predates the 2026-04-22 scope promotion of ADR-018 to cross-cutting. Test coverage reflects the property/session/benchmark strategy as it existed when this feature shipped; not retroactively reclassified.
-  ADR-043: Predates ADR-043; feature command adapters were written before the slice+adapter pattern was formalised and are not retroactively refactored.
+  ADR-048: Predates ADR-048; this feature does not author the canonical .product/ folder layout. FT-057 owns the migration command and discovery fallback.
+  ADR-042: MCP lifecycle parity does not introduce or alter TC types; wiring is orthogonal to the type system.
+  ADR-047: Predates ADR-047; this feature does not author the functional-spec body convention. FT-055 owns the structural validator and W030 mechanics.
 ---
 
 ## Description
@@ -162,3 +164,41 @@ See TC-585 (exit criteria) for the consolidated check-list.
 - **Feature/TC/DEP parity audit.** This feature closes the ADR gap. A follow-on should walk the remaining MCP tools (`product_feature_status`, `product_test_status`, etc.) and confirm none of them silently drop writes. If any do, add them to a follow-on feature with the same pattern.
 - **Content-hash seal audit via MCP.** Once ADR-032 governance is comfortable with MCP being authoritative for amendments, consider exposing `product_adr_rehash` as a first-class MCP tool for sealing ADRs that predate content-hash.
 - **Optional: MCP-visible `product_adr_accept_preview`.** A read-only tool that returns what `product adr status ADR-XXX accepted` *would* do (impact analysis, computed hash, affected features), without performing the write. Lets an agent prepare the human for the manual CLI step.
+
+---
+
+## Functional Specification
+
+This feature predates ADR-047. Subsections below are backfilled stubs to satisfy structural completeness; substantive behaviour is documented in the prose above and in the linked ADRs.
+
+### Inputs
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Outputs
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### State
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Behaviour
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Invariants
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Error handling
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Boundaries
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+## Out of scope
+
+Not separately enumerated for this legacy feature; scope boundaries are implicit in the prose above and in the linked ADRs.

@@ -18,11 +18,13 @@ domains:
 - observability
 - security
 domains-acknowledged:
-  ADR-041: Path normalisation is orthogonal to absence-TC and ADR removes/deprecates lifecycle; the transform applies to all entry types uniformly.
   ADR-043: Implementation is a new pure helper under `src/request_log/` paired with the existing append adapters; it follows the slice + adapter split by construction.
-  ADR-042: Log entries carry no tc-type partition; the transform is independent of the TC vocabulary defined by ADR-042.
+  ADR-047: Predates ADR-047; this feature does not author the functional-spec body convention. FT-055 owns the structural validator and W030 mechanics.
+  ADR-048: Predates ADR-048; this feature does not author the canonical .product/ folder layout. FT-057 owns the migration command and discovery fallback.
   ADR-040: Request-log writes are the record-side of the LLM boundary already owned by FT-041 / FT-042; relativisation is a pure string transform at the same boundary and adds no new pipeline stage.
+  ADR-041: Path normalisation is orthogonal to absence-TC and ADR removes/deprecates lifecycle; the transform applies to all entry types uniformly.
   ADR-018: Predates the 2026-04-22 scope promotion of ADR-018 to cross-cutting. Test coverage reflects the property/session/benchmark strategy as it existed when this feature shipped; not retroactively reclassified.
+  ADR-042: Log entries carry no tc-type partition; the transform is independent of the TC vocabulary defined by ADR-042.
 ---
 
 ## Description
@@ -201,3 +203,41 @@ See TC-625 (exit criteria) for the consolidated check-list.
   command that reassigns all hashes and stamps a new genesis could be
   offered. Deliberately out of scope because it breaks external
   references to entry IDs.
+
+---
+
+## Functional Specification
+
+This feature predates ADR-047. Subsections below are backfilled stubs to satisfy structural completeness; substantive behaviour is documented in the prose above and in the linked ADRs.
+
+### Inputs
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Outputs
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### State
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Behaviour
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Invariants
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Error handling
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Boundaries
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+## Out of scope
+
+Not separately enumerated for this legacy feature; scope boundaries are implicit in the prose above and in the linked ADRs.

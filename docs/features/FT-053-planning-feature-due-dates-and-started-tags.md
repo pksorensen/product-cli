@@ -25,11 +25,13 @@ domains:
 - observability
 - scheduling
 domains-acknowledged:
-  ADR-043: Implementation adds to existing slices (`src/verify/` for the W-class stage, `src/tags/` for the started-tag helper, `src/status/` for the due-date cell) following the plan-then-apply pattern; no monolithic handlers introduced.
-  ADR-041: No absence TCs or ADR removes/deprecates interaction — `due-date` is a feature front-matter addition and the started tag extends ADR-036's existing implementation-tracking namespace.
-  ADR-018: Predates the 2026-04-22 scope promotion of ADR-018 to cross-cutting. Test coverage reflects the property/session/benchmark strategy as it existed when this feature shipped; not retroactively reclassified.
-  ADR-040: W028/W029 fire in the existing verify stage 2 (graph structure) alongside W002/W010; the planning warnings reuse the existing W-class channel and exit-code contract without adding a new verify stage or LLM-boundary hook.
   ADR-042: The exit-criteria TC (TC-644) uses the existing `exit-criteria` structural type from ADR-042 unchanged; no new TC types are introduced and the scenario/invariant partition is not touched.
+  ADR-040: W028/W029 fire in the existing verify stage 2 (graph structure) alongside W002/W010; the planning warnings reuse the existing W-class channel and exit-code contract without adding a new verify stage or LLM-boundary hook.
+  ADR-048: Predates ADR-048; this feature does not author the canonical .product/ folder layout. FT-057 owns the migration command and discovery fallback.
+  ADR-018: Predates the 2026-04-22 scope promotion of ADR-018 to cross-cutting. Test coverage reflects the property/session/benchmark strategy as it existed when this feature shipped; not retroactively reclassified.
+  ADR-041: No absence TCs or ADR removes/deprecates interaction — `due-date` is a feature front-matter addition and the started tag extends ADR-036's existing implementation-tracking namespace.
+  ADR-047: Predates ADR-047; this feature does not author the functional-spec body convention. FT-055 owns the structural validator and W030 mechanics.
+  ADR-043: Implementation adds to existing slices (`src/verify/` for the W-class stage, `src/tags/` for the started-tag helper, `src/status/` for the due-date cell) following the plan-then-apply pattern; no monolithic handlers introduced.
 ---
 
 ## Description
@@ -239,3 +241,41 @@ See the exit-criteria TC for the consolidated check-list.
 - **Burndown rendering in `product status`.** Extended output
    showing per-phase due-date distribution and overdue count.
    Pure surface — no new fields required. Deferred.
+
+---
+
+## Functional Specification
+
+This feature predates ADR-047. Subsections below are backfilled stubs to satisfy structural completeness; substantive behaviour is documented in the prose above and in the linked ADRs.
+
+### Inputs
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Outputs
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### State
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Behaviour
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Invariants
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Error handling
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Boundaries
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+## Out of scope
+
+Not separately enumerated for this legacy feature; scope boundaries are implicit in the prose above and in the linked ADRs.

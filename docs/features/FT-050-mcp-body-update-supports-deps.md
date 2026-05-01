@@ -18,11 +18,13 @@ domains:
 - api
 - data-model
 domains-acknowledged:
-  ADR-041: Deps participate in absence-TC semantics via FT-047; this feature only adds body-text editing, leaving removal / deprecation lifecycle untouched.
-  ADR-043: MCP handlers live in `src/mcp/`; the feature adds one branch to the existing prefix dispatcher and one helper mirroring the other three, rather than a new slice.
   ADR-018: Predates the 2026-04-22 scope promotion of ADR-018 to cross-cutting. Test coverage reflects the property/session/benchmark strategy as it existed when this feature shipped; not retroactively reclassified.
-  ADR-042: Dep bodies carry no tc-type partition; the body_update contract is identical for every artifact type and does not depend on the TC vocabulary.
+  ADR-048: Predates ADR-048; this feature does not author the canonical .product/ folder layout. FT-057 owns the migration command and discovery fallback.
+  ADR-047: Predates ADR-047; this feature does not author the functional-spec body convention. FT-055 owns the structural validator and W030 mechanics.
+  ADR-043: MCP handlers live in `src/mcp/`; the feature adds one branch to the existing prefix dispatcher and one helper mirroring the other three, rather than a new slice.
   ADR-040: body_update is an MCP write-path, not a verify-pipeline stage; no new stage hook is added and the LLM-boundary surface expands only by one accepted prefix.
+  ADR-042: Dep bodies carry no tc-type partition; the body_update contract is identical for every artifact type and does not depend on the TC vocabulary.
+  ADR-041: Deps participate in absence-TC semantics via FT-047; this feature only adds body-text editing, leaving removal / deprecation lifecycle untouched.
 ---
 
 ## Description
@@ -144,3 +146,41 @@ See TC-622 (exit criteria) for the consolidated check-list.
   DEP uniformly); tracked out-of-band.
 - **Diff preview before write.** An MCP caller could request a preview of
   the rendered file before commit. Nice-to-have.
+
+---
+
+## Functional Specification
+
+This feature predates ADR-047. Subsections below are backfilled stubs to satisfy structural completeness; substantive behaviour is documented in the prose above and in the linked ADRs.
+
+### Inputs
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Outputs
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### State
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Behaviour
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Invariants
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Error handling
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+### Boundaries
+
+Not separately enumerated — this feature predates ADR-047. See the prose above and linked ADRs for substantive content.
+
+## Out of scope
+
+Not separately enumerated for this legacy feature; scope boundaries are implicit in the prose above and in the linked ADRs.
