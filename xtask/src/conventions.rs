@@ -1,4 +1,4 @@
-//! Convention doc frontmatter parser, shared by checks and the drift self-test.
+//! Convention doc frontmatter parser.
 
 use std::fs;
 use std::path::{Path, PathBuf};

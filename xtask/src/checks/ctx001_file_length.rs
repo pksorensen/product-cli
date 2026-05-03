@@ -5,17 +5,19 @@ use std::path::Path;
 
 use walkdir::WalkDir;
 
+use crate::check_id::CtxId;
 use crate::checks::Check;
 use crate::diagnostic::Diagnostic;
 
+const ID: CtxId = CtxId::new("CTX001");
 const HARD_LIMIT: usize = 400;
 const WARN_LIMIT: usize = 300;
 
 pub struct FileLengthCheck;
 
 impl Check for FileLengthCheck {
-    fn id(&self) -> &'static str {
-        "CTX001"
+    fn id(&self) -> CtxId {
+        ID
     }
 
     fn title(&self) -> &'static str {

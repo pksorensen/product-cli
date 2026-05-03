@@ -74,6 +74,14 @@ jobs:
         # whose frontmatter id/title/adrs match the implementation.
         run: cargo xtask check --self-test
 
+      - name: Supply-chain check (cargo-deny)
+        # Enforces deny.toml — license allow-list, advisory database, banned
+        # crates, and source restrictions. See conventions/docs/CTX-DEPS.md.
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+          arguments: --workspace
+
       - name: Graph check
         run: |
           # Exits 0 (clean), 2 (warnings only) = pass

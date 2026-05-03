@@ -81,6 +81,36 @@ matching xtask check or workspace lint may eventually be removed; the doc
 becomes a brief explanation pointing at the type that enforces it. The ADR
 is unchanged — its job is rationale, not implementation.
 
+## Example lifecycle
+
+A new convention emerges in code review: *"all error types returned from a
+public API must be `#[non_exhaustive]` so we can extend them without a
+breaking change."*
+
+1. **ADR drafted.** `conventions/adr/ADR-0042-non-exhaustive-errors.md`
+   captures alternatives considered (sealed enums, error trait objects)
+   and the decision.
+2. **Convention doc added.** `conventions/docs/CTX008.md` carries the
+   frontmatter, examples, and a pointer to ADR-0042.
+3. **Enforcement wired.** Most rules start at Tier 3b (xtask + syn): scan
+   public functions, find `Result<_, E>` returns, walk back to the type
+   definition, verify it carries `#[non_exhaustive]`. Implementation lives
+   at `xtask/src/checks/ctx008_non_exhaustive_errors.rs` and is registered
+   in `Registry::default_set()`.
+4. **Drift self-test picks it up.** `cargo xtask check --self-test`
+   automatically iterates the new check and validates the doc agrees on
+   id, title, adrs, severity, tier, and mechanism.
+5. **PR merges.** From the next CI run onward, every crate in the
+   workspace enforces the rule. Existing violations surface as build
+   breaks; address them in follow-up PRs (or ship the check at
+   `severity: warn` first and promote to `deny` once cleaned up).
+6. **Promotion.** Months later, someone introduces a `#[derive(WorkspaceError)]`
+   macro that emits the type with `#[non_exhaustive]` automatically. The
+   rule moves to Tier 2: the doc updates `mechanism: macro`, the xtask
+   check is rewritten as "all error types must be defined via
+   `#[derive(WorkspaceError)]`", and the ADR is unchanged — its job is
+   rationale, not implementation.
+
 ## The markdown is not in the trust path
 
 These docs explain *why* a rule fired *after* it fired. The build is the

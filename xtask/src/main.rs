@@ -1,17 +1,11 @@
 //! Workspace convention checker entry point.
 
-mod checks;
-mod conventions;
-mod diagnostic;
-mod drift;
-
 use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand, ValueEnum};
 
-use crate::checks::Registry;
-use crate::diagnostic::{Diagnostic, Format, Severity};
+use xtask::{diagnostic, drift, Diagnostic, Format, Registry, Severity};
 
 #[derive(Parser)]
 #[command(name = "xtask", about = "Workspace convention enforcement")]
@@ -75,7 +69,7 @@ fn main() -> ExitCode {
                     if only.is_empty() { None } else { Some(only) };
                 for check in registry.iter() {
                     if let Some(ids) = filter.as_ref() {
-                        if !ids.iter().any(|id| id.eq_ignore_ascii_case(check.id())) {
+                        if !ids.iter().any(|id| id.eq_ignore_ascii_case(check.id().as_str())) {
                             continue;
                         }
                     }
