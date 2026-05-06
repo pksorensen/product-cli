@@ -6,11 +6,17 @@ status: planned
 depends-on: []
 adrs:
 - ADR-048
+- ADR-013
+- ADR-018
+- ADR-043
+- ADR-047
 tests: []
 domains:
 - api
 - error-handling
-domains-acknowledged: {}
+domains-acknowledged:
+  api: 'Cross-cutting ADRs in the api domain that are not directly relevant to this focused MCP config-discovery fix are explicitly considered and excluded: ADR-040 (verify pipeline) — this feature does not change verify behaviour; ADR-041 (removal/deprecation TCs) — this feature removes nothing and deprecates nothing; ADR-042 (TC type system) — this feature introduces no new TC types. The feature''s api surface is limited to existing MCP tool entry points, which already follow the conventions pinned by the linked ADR-013 (error model) and ADR-043 (slice+adapter).'
+  error-handling: 'Cross-cutting ADRs in error-handling that are not directly relevant are explicitly considered: ADR-040 (verify pipeline error stages) — this feature does not change verify pipeline error handling; ADR-041 (removal/deprecation absence-TC errors) — this feature does not declare removes/deprecates; ADR-042 (TC type validation errors E006/E017) — this feature does not touch TC type validation. The feature''s only error-handling change is the message text in handle_responsibility plus a new structured ConfigError that lists the three searched filenames; both follow the format and exit-code mapping pinned by linked ADR-013.'
 ---
 
 ## Description
