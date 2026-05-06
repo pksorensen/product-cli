@@ -17,14 +17,10 @@ use super::BoxResult;
 
 #[derive(Subcommand)]
 pub enum RequestCommands {
-    /// Open $EDITOR with a create template in .product/requests/
-    Create,
-    /// Open $EDITOR with a change template in .product/requests/
-    Change,
-    /// Validate a request YAML without writing — reports every finding
-    Validate {
-        /// Path to the request YAML file (defaults to the active draft)
-        file: Option<PathBuf>,
+    /// Append an artifact or change to the active draft (FT-052)
+    Add {
+        #[command(subcommand)]
+        command: BuilderAddCommands,
     },
     /// Validate and apply a request atomically
     Apply {
@@ -34,48 +30,37 @@ pub enum RequestCommands {
         #[arg(long)]
         commit: bool,
     },
+    /// Open $EDITOR with a change template in .product/requests/
+    Change,
+    /// Resume the active interactive draft session (FT-052)
+    #[command(name = "continue")]
+    Continue,
+    /// Open $EDITOR with a create template in .product/requests/
+    Create,
     /// Show what would change without writing
     Diff {
         /// Path to the request YAML file (defaults to the active draft)
         file: Option<PathBuf>,
     },
-    /// List draft YAML files under .product/requests/
-    Draft,
-    /// Start a new interactive draft session (FT-052)
-    New {
-        /// Draft kind: "create" or "change"
-        kind: String,
-    },
-    /// Resume the active interactive draft session (FT-052)
-    #[command(name = "continue")]
-    Continue,
     /// Remove the active interactive draft (FT-052)
     Discard {
         /// Skip confirmation
         #[arg(long)]
         force: bool,
     },
-    /// Show the active draft's state with per-artifact indicators (FT-052)
-    Status,
-    /// Print the raw draft YAML to stdout (FT-052)
-    Show,
-    /// Submit the active draft — validate, apply, archive (FT-052)
-    Submit {
-        /// Submit through warnings without prompting
-        #[arg(long)]
-        force: bool,
-    },
+    /// List draft YAML files under .product/requests/
+    Draft,
     /// Open the active draft in `$EDITOR` (FT-052)
     Edit,
-    /// Append an artifact or change to the active draft (FT-052)
-    Add {
-        #[command(subcommand)]
-        command: BuilderAddCommands,
-    },
     /// View / verify the hash-chained request log (FT-042)
     Log {
         #[command(subcommand)]
         command: LogCommands,
+    },
+    /// Start a new interactive draft session (FT-052)
+    New {
+        /// Draft kind: "create" or "change"
+        kind: String,
     },
     /// Replay the log into a directory outside the working tree (FT-042)
     Replay {
@@ -89,6 +74,16 @@ pub enum RequestCommands {
         #[arg(long)]
         output: Option<PathBuf>,
     },
+    /// Print the raw draft YAML to stdout (FT-052)
+    Show,
+    /// Show the active draft's state with per-artifact indicators (FT-052)
+    Status,
+    /// Submit the active draft — validate, apply, archive (FT-052)
+    Submit {
+        /// Submit through warnings without prompting
+        #[arg(long)]
+        force: bool,
+    },
     /// Append an undo entry that reverses a past request (FT-042)
     Undo {
         /// Request ID to undo
@@ -97,41 +92,46 @@ pub enum RequestCommands {
         #[arg(long)]
         reason: Option<String>,
     },
+    /// Validate a request YAML without writing — reports every finding
+    Validate {
+        /// Path to the request YAML file (defaults to the active draft)
+        file: Option<PathBuf>,
+    },
 }
 
 pub(crate) fn handle_request(cmd: RequestCommands, fmt: &str) -> BoxResult {
     match cmd {
-        RequestCommands::Create => create_draft("create"),
-        RequestCommands::Change => create_draft("change"),
-        RequestCommands::Validate { file } => validate(file.as_deref(), fmt),
-        RequestCommands::Apply { file, commit } => apply(&file, commit, fmt),
-        RequestCommands::Diff { file } => diff(file.as_deref(), fmt),
-        RequestCommands::Draft => list_drafts(),
-        RequestCommands::New { kind } => {
-            request_builder_cmd::handle_builder(BuilderCommands::New { kind })
-        }
-        RequestCommands::Continue => {
-            request_builder_cmd::handle_builder(BuilderCommands::Continue)
-        }
-        RequestCommands::Discard { force } => {
-            request_builder_cmd::handle_builder(BuilderCommands::Discard { force })
-        }
-        RequestCommands::Status => request_builder_cmd::handle_builder(BuilderCommands::Status),
-        RequestCommands::Show => request_builder_cmd::handle_builder(BuilderCommands::Show),
-        RequestCommands::Submit { force } => {
-            request_builder_cmd::handle_builder(BuilderCommands::Submit { force })
-        }
-        RequestCommands::Edit => request_builder_cmd::handle_builder(BuilderCommands::Edit),
         RequestCommands::Add { command } => {
             request_builder_cmd::handle_builder(BuilderCommands::Add { command })
         }
+        RequestCommands::Apply { file, commit } => apply(&file, commit, fmt),
+        RequestCommands::Change => create_draft("change"),
+        RequestCommands::Continue => {
+            request_builder_cmd::handle_builder(BuilderCommands::Continue)
+        }
+        RequestCommands::Create => create_draft("create"),
+        RequestCommands::Diff { file } => diff(file.as_deref(), fmt),
+        RequestCommands::Discard { force } => {
+            request_builder_cmd::handle_builder(BuilderCommands::Discard { force })
+        }
+        RequestCommands::Draft => list_drafts(),
+        RequestCommands::Edit => request_builder_cmd::handle_builder(BuilderCommands::Edit),
         RequestCommands::Log { command } => request_log_cmd::handle_log(command, fmt),
+        RequestCommands::New { kind } => {
+            request_builder_cmd::handle_builder(BuilderCommands::New { kind })
+        }
         RequestCommands::Replay { full, to, output } => {
             request_log_cmd::handle_replay(full, to, output)
+        }
+        RequestCommands::Show => request_builder_cmd::handle_builder(BuilderCommands::Show),
+        RequestCommands::Status => request_builder_cmd::handle_builder(BuilderCommands::Status),
+        RequestCommands::Submit { force } => {
+            request_builder_cmd::handle_builder(BuilderCommands::Submit { force })
         }
         RequestCommands::Undo { req_id, reason } => {
             request_log_cmd::handle_undo(&req_id, reason.as_deref())
         }
+        RequestCommands::Validate { file } => validate(file.as_deref(), fmt),
     }
 }
 

@@ -19,10 +19,6 @@ pub enum TestCommands {
         #[arg(long)]
         failing: bool,
     },
-    /// Show a test criterion's details
-    Show { id: String },
-    /// List features with no linked test criteria
-    Untested,
     /// Create a new test criterion file
     New {
         /// Test title
@@ -30,13 +26,6 @@ pub enum TestCommands {
         /// Test type: scenario, invariant, chaos, exit-criteria
         #[arg(long = "type", default_value = "scenario")]
         test_type: String,
-    },
-    /// Set test criterion status
-    Status {
-        /// Test ID
-        id: String,
-        /// New status: unimplemented, implemented, passing, failing
-        new_status: String,
     },
     /// Configure test runner (runner, args, timeout, requires)
     Runner {
@@ -58,6 +47,17 @@ pub enum TestCommands {
         #[arg(long)]
         remove_requires: Vec<String>,
     },
+    /// Show a test criterion's details
+    Show { id: String },
+    /// Set test criterion status
+    Status {
+        /// Test ID
+        id: String,
+        /// New status: unimplemented, implemented, passing, failing
+        new_status: String,
+    },
+    /// List features with no linked test criteria
+    Untested,
 }
 
 pub(crate) fn handle_test(cmd: TestCommands, fmt: &str) -> BoxResult {
@@ -68,10 +68,7 @@ pub(crate) fn handle_test(cmd: TestCommands, fmt: &str) -> BoxResult {
             status,
             failing,
         } => super::render(test_list(phase, test_type, status, failing), fmt),
-        TestCommands::Show { id } => super::render(test_show(&id), fmt),
-        TestCommands::Untested => super::render(test_untested(), fmt),
         TestCommands::New { title, test_type } => super::render(test_new(&title, &test_type), fmt),
-        TestCommands::Status { id, new_status } => super::render(test_status(&id, &new_status), fmt),
         TestCommands::Runner {
             id,
             runner,
@@ -80,6 +77,9 @@ pub(crate) fn handle_test(cmd: TestCommands, fmt: &str) -> BoxResult {
             requires,
             remove_requires,
         } => super::render(test_runner(&id, runner, args, timeout, requires, remove_requires), fmt),
+        TestCommands::Show { id } => super::render(test_show(&id), fmt),
+        TestCommands::Status { id, new_status } => super::render(test_status(&id, &new_status), fmt),
+        TestCommands::Untested => super::render(test_untested(), fmt),
     }
 }
 

@@ -4,7 +4,8 @@ title: AGENTS.md key mcp tools table matches registry
 type: invariant
 status: unimplemented
 validates:
-  features: []
+  features:
+  - FT-059
   adrs: []
 phase: 1
 runner: cargo-test

@@ -11,13 +11,14 @@ use super::BoxResult;
 
 #[derive(Subcommand)]
 pub enum AddCommands {
-    /// Append a new feature artifact (create-mode drafts)
-    Feature {
-        #[arg(long)] title: String,
-        #[arg(long)] phase: u32,
-        /// Comma-separated list of domains
-        #[arg(long, default_value = "")] domains: String,
-        #[arg(long = "ref")] ref_name: Option<String>,
+    /// Add a domain acknowledgement shortcut (change-mode drafts)
+    Acknowledgement {
+        /// Target artifact ID (e.g. FT-001)
+        id: String,
+        /// Domain name
+        domain: String,
+        /// Reason (non-empty)
+        reason: String,
     },
     /// Append a new ADR artifact (create-mode drafts)
     Adr {
@@ -25,14 +26,6 @@ pub enum AddCommands {
         #[arg(long, default_value = "")] domains: String,
         #[arg(long)] scope: Option<String>,
         #[arg(long, default_value = "")] governs: String,
-        #[arg(long = "ref")] ref_name: Option<String>,
-    },
-    /// Append a new test-criterion artifact (create-mode drafts)
-    Tc {
-        #[arg(long)] title: String,
-        #[arg(long = "tc-type")] tc_type: String,
-        #[arg(long, default_value = "")] validates_features: String,
-        #[arg(long, default_value = "")] validates_adrs: String,
         #[arg(long = "ref")] ref_name: Option<String>,
     },
     /// Append a new dependency artifact (create-mode drafts)
@@ -51,19 +44,26 @@ pub enum AddCommands {
         #[arg(long, default_value = "")] domains: String,
         #[arg(long = "ref")] ref_name: Option<String>,
     },
+    /// Append a new feature artifact (create-mode drafts)
+    Feature {
+        #[arg(long)] title: String,
+        #[arg(long)] phase: u32,
+        /// Comma-separated list of domains
+        #[arg(long, default_value = "")] domains: String,
+        #[arg(long = "ref")] ref_name: Option<String>,
+    },
     /// Add a change block targeting an existing artifact (change-mode drafts)
     Target {
         /// Target artifact ID (e.g. FT-001)
         id: String,
     },
-    /// Add a domain acknowledgement shortcut (change-mode drafts)
-    Acknowledgement {
-        /// Target artifact ID (e.g. FT-001)
-        id: String,
-        /// Domain name
-        domain: String,
-        /// Reason (non-empty)
-        reason: String,
+    /// Append a new test-criterion artifact (create-mode drafts)
+    Tc {
+        #[arg(long)] title: String,
+        #[arg(long = "tc-type")] tc_type: String,
+        #[arg(long, default_value = "")] validates_features: String,
+        #[arg(long, default_value = "")] validates_adrs: String,
+        #[arg(long = "ref")] ref_name: Option<String>,
     },
 }
 
@@ -82,9 +82,9 @@ fn dispatch_add(
     graph: &KnowledgeGraph,
 ) -> Result<add::AddedArtifact, Vec<Finding>> {
     match cmd {
-        AddCommands::Feature { title, phase, domains, ref_name } => add::add_feature(
+        AddCommands::Acknowledgement { id, domain, reason } => add::add_acknowledgement(
             draft,
-            add::AddFeatureArgs { title, phase, domains: split_csv(&domains), ref_name },
+            add::AddAckArgs { target: id, domain, reason },
             config, graph,
         ),
         AddCommands::Adr { title, domains, scope, governs, ref_name } => add::add_adr(
@@ -96,6 +96,26 @@ fn dispatch_add(
                 governs: split_csv(&governs),
                 ref_name,
             },
+            config, graph,
+        ),
+        AddCommands::Dep { title, dep_type, version, adr, adr_title, ref_name } => add::add_dep(
+            draft,
+            add::AddDepArgs { title, dep_type, version, adr, adr_title, ref_name },
+            config, graph,
+        ),
+        AddCommands::Doc { title, domains, ref_name } => add::add_doc(
+            draft,
+            add::AddDocArgs { title, domains: split_csv(&domains), ref_name },
+            config, graph,
+        ),
+        AddCommands::Feature { title, phase, domains, ref_name } => add::add_feature(
+            draft,
+            add::AddFeatureArgs { title, phase, domains: split_csv(&domains), ref_name },
+            config, graph,
+        ),
+        AddCommands::Target { id } => add::add_target(
+            draft,
+            add::AddTargetArgs { target: id, mutations: Vec::new() },
             config, graph,
         ),
         AddCommands::Tc { title, tc_type, validates_features, validates_adrs, ref_name } => {
@@ -110,26 +130,6 @@ fn dispatch_add(
                 config, graph,
             )
         }
-        AddCommands::Dep { title, dep_type, version, adr, adr_title, ref_name } => add::add_dep(
-            draft,
-            add::AddDepArgs { title, dep_type, version, adr, adr_title, ref_name },
-            config, graph,
-        ),
-        AddCommands::Doc { title, domains, ref_name } => add::add_doc(
-            draft,
-            add::AddDocArgs { title, domains: split_csv(&domains), ref_name },
-            config, graph,
-        ),
-        AddCommands::Target { id } => add::add_target(
-            draft,
-            add::AddTargetArgs { target: id, mutations: Vec::new() },
-            config, graph,
-        ),
-        AddCommands::Acknowledgement { id, domain, reason } => add::add_acknowledgement(
-            draft,
-            add::AddAckArgs { target: id, domain, reason },
-            config, graph,
-        ),
     }
 }
 

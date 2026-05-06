@@ -8,22 +8,16 @@ use super::{acquire_write_lock, load_graph, BoxResult};
 
 #[derive(Subcommand)]
 pub enum MigrateCommands {
-    /// Parse a monolithic PRD into feature files
-    FromPrd {
-        /// Path to the source PRD markdown file
-        source: String,
-        /// Only show what would be created, don't write files
-        #[arg(long)]
-        validate: bool,
-        /// Write files (default: dry-run)
-        #[arg(long)]
-        execute: bool,
-        /// Overwrite existing files
-        #[arg(long)]
-        overwrite: bool,
-        /// Review each artifact before writing
-        #[arg(long)]
-        interactive: bool,
+    /// Consolidate the legacy `docs/`, `benchmarks/prompts/`, and root files
+    /// under the canonical `.product/` layout (FT-057, ADR-048).
+    /// Default is dry-run; pass `--apply` to perform the migration.
+    Consolidate {
+        /// Perform the migration (default is dry-run)
+        #[arg(short = 'a', long)]
+        apply: bool,
+        /// Skip the dirty-tree guard (allow uncommitted changes in moved paths)
+        #[arg(long = "force-uncommitted")]
+        force_uncommitted: bool,
     },
     /// Parse a monolithic ADR file into ADR + test files
     FromAdrs {
@@ -33,6 +27,23 @@ pub enum MigrateCommands {
         #[arg(long)]
         validate: bool,
         /// Write files
+        #[arg(long)]
+        execute: bool,
+        /// Overwrite existing files
+        #[arg(long)]
+        overwrite: bool,
+        /// Review each artifact before writing
+        #[arg(long)]
+        interactive: bool,
+    },
+    /// Parse a monolithic PRD into feature files
+    FromPrd {
+        /// Path to the source PRD markdown file
+        source: String,
+        /// Only show what would be created, don't write files
+        #[arg(long)]
+        validate: bool,
+        /// Write files (default: dry-run)
         #[arg(long)]
         execute: bool,
         /// Overwrite existing files
@@ -60,30 +71,15 @@ pub enum MigrateCommands {
         #[arg(long)]
         dry_run: bool,
     },
-    /// Consolidate the legacy `docs/`, `benchmarks/prompts/`, and root files
-    /// under the canonical `.product/` layout (FT-057, ADR-048).
-    /// Default is dry-run; pass `--apply` to perform the migration.
-    Consolidate {
-        /// Perform the migration (default is dry-run)
-        #[arg(short = 'a', long)]
-        apply: bool,
-        /// Skip the dirty-tree guard (allow uncommitted changes in moved paths)
-        #[arg(long = "force-uncommitted")]
-        force_uncommitted: bool,
-    },
     /// Report what migration would produce without writing
     Validate,
 }
 
 pub(crate) fn handle_migrate(cmd: MigrateCommands) -> BoxResult {
     match cmd {
-        MigrateCommands::FromPrd {
-            source,
-            validate,
-            execute,
-            overwrite,
-            interactive,
-        } => migrate_from_prd(&source, validate, execute, overwrite, interactive),
+        MigrateCommands::Consolidate { apply, force_uncommitted } => {
+            migrate_consolidate(apply, force_uncommitted)
+        }
         MigrateCommands::FromAdrs {
             source,
             validate,
@@ -91,15 +87,19 @@ pub(crate) fn handle_migrate(cmd: MigrateCommands) -> BoxResult {
             overwrite,
             interactive,
         } => migrate_from_adrs(&source, validate, execute, overwrite, interactive),
+        MigrateCommands::FromPrd {
+            source,
+            validate,
+            execute,
+            overwrite,
+            interactive,
+        } => migrate_from_prd(&source, validate, execute, overwrite, interactive),
         MigrateCommands::LinkTests {
             dry_run,
             adr,
             feature,
         } => migrate_link_tests(dry_run, adr, feature),
         MigrateCommands::Schema { dry_run } => migrate_schema(dry_run),
-        MigrateCommands::Consolidate { apply, force_uncommitted } => {
-            migrate_consolidate(apply, force_uncommitted)
-        }
         MigrateCommands::Validate => migrate_validate(),
     }
 }

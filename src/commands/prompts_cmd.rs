@@ -7,24 +7,24 @@ use super::BoxResult;
 
 #[derive(Subcommand)]
 pub enum PromptsCommands {
-    /// Initialize default prompt files in benchmarks/prompts/
-    Init,
-    /// List available prompts with version numbers
-    List,
     /// Print a prompt to stdout (for piping to agents)
     Get {
         /// Prompt name (e.g. author-feature, author-adr, author-review, implement)
         name: String,
     },
+    /// Initialize default prompt files in benchmarks/prompts/
+    Init,
+    /// List available prompts with version numbers
+    List,
 }
 
 pub(crate) fn handle_prompts(cmd: PromptsCommands) -> BoxResult {
     let (config, root) = ProductConfig::discover()?;
     let prompts_path = config.paths.prompts_resolved().to_string();
     match cmd {
+        PromptsCommands::Get { name } => prompts_get(&root, &prompts_path, &name),
         PromptsCommands::Init => prompts_init(&root, &prompts_path),
         PromptsCommands::List => prompts_list(&root, &prompts_path),
-        PromptsCommands::Get { name } => prompts_get(&root, &prompts_path, &name),
     }
 }
 

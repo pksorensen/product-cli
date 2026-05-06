@@ -439,6 +439,239 @@ fn tc_380_single_responsibility_and() {
 }
 
 // =============================================================================
+// FT-060 / TC-727: cli_subcommands_are_sorted
+//
+// For every `Subcommand`-deriving enum declared under `src/commands/`,
+// assert that the sequence of variant names (translated to clap's
+// kebab-case rendering) is sorted under `str::cmp`.
+//
+// String-based parsing — consistent with the file-length and SRP checks
+// (no `syn` dependency).
+// =============================================================================
+
+/// One variant of a parsed `Subcommand` enum.
+#[derive(Debug)]
+struct ParsedVariant {
+    /// The variant identifier as written in source (e.g. `AgentInit`).
+    /// Retained for diagnostic detail in panic messages, even when not
+    /// directly used.
+    #[allow(dead_code)]
+    ident: String,
+    /// The clap-rendered command name (e.g. `agent-init`, or an explicit
+    /// `#[command(name = "X")]` override).
+    rendered: String,
+}
+
+/// One `Subcommand`-deriving enum extracted from a source file.
+#[derive(Debug)]
+struct ParsedEnum {
+    name: String,
+    variants: Vec<ParsedVariant>,
+}
+
+/// Convert a PascalCase identifier to clap's default kebab-case rendering.
+/// Inserts `-` before every uppercase letter except at position 0, then
+/// lowercases. Example: `AgentInit` -> `agent-init`.
+fn ident_to_kebab(ident: &str) -> String {
+    let mut out = String::with_capacity(ident.len() + 4);
+    for (i, c) in ident.chars().enumerate() {
+        if c.is_ascii_uppercase() {
+            if i > 0 {
+                out.push('-');
+            }
+            out.push(c.to_ascii_lowercase());
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// Find every `pub enum <Name> { ... }` whose preceding lines contain a
+/// `#[derive(... Subcommand ...)]` attribute, and parse out the variant
+/// identifiers between `{` and `}`. Returns one entry per Subcommand enum.
+fn parse_subcommand_enums(source: &str) -> Vec<ParsedEnum> {
+    let lines: Vec<&str> = source.lines().collect();
+    let mut enums = Vec::new();
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i].trim();
+        // Look for an enum declaration. A Subcommand-deriving enum has a
+        // `#[derive(... Subcommand ...)]` attribute on one of the lines
+        // immediately preceding the `pub enum` line.
+        if let Some(name) = parse_enum_header(line) {
+            // Walk back up to 5 lines looking for the derive attribute.
+            let start = i.saturating_sub(5);
+            let mut is_subcommand = false;
+            for prev in &lines[start..i] {
+                if prev.contains("#[derive(") && prev.contains("Subcommand") {
+                    is_subcommand = true;
+                    break;
+                }
+            }
+            if !is_subcommand {
+                i += 1;
+                continue;
+            }
+            // Collect the body until the matching closing brace at column 0.
+            let (variants, end) = parse_enum_body(&lines, i + 1);
+            enums.push(ParsedEnum { name, variants });
+            i = end + 1;
+            continue;
+        }
+        i += 1;
+    }
+    enums
+}
+
+/// If `line` starts with `pub enum <Name> {`, return `<Name>`.
+fn parse_enum_header(line: &str) -> Option<String> {
+    let s = line.trim_start_matches("pub(crate) ").trim_start_matches("pub ");
+    let rest = s.strip_prefix("enum ")?;
+    let name = rest.split_whitespace().next()?;
+    // Require an opening brace on the same line (the codebase style).
+    if !line.contains('{') {
+        return None;
+    }
+    Some(name.trim_end_matches('{').to_string())
+}
+
+/// Parse the body of an enum starting at `start` (the line after the
+/// opening `{`). Returns the list of variants and the index of the
+/// closing `}`.
+fn parse_enum_body(lines: &[&str], start: usize) -> (Vec<ParsedVariant>, usize) {
+    let mut variants = Vec::new();
+    let mut pending_name_override: Option<String> = None;
+    let mut i = start;
+    while i < lines.len() {
+        let raw = lines[i];
+        let trimmed = raw.trim();
+
+        // End of enum body — closing brace at column 0.
+        if raw.starts_with('}') {
+            return (variants, i);
+        }
+
+        // Skip blank lines and full-line comments.
+        if trimmed.is_empty() || trimmed.starts_with("//") {
+            i += 1;
+            continue;
+        }
+
+        // Capture `#[command(name = "...")]` overrides for the next
+        // variant. Aliases are deliberately ignored — the test asserts
+        // primary rendered names only.
+        if trimmed.starts_with("#[command(") {
+            if let Some(name) = parse_command_name_override(trimmed) {
+                pending_name_override = Some(name);
+            }
+            i += 1;
+            continue;
+        }
+
+        // Skip any other attribute lines.
+        if trimmed.starts_with('#') {
+            i += 1;
+            continue;
+        }
+
+        // A variant line starts with a PascalCase identifier. Anything
+        // else (field declarations inside a struct-like variant body,
+        // continuation lines, `}` markers) is skipped.
+        if let Some(ident) = first_pascal_word(trimmed) {
+            let rendered = pending_name_override
+                .take()
+                .unwrap_or_else(|| ident_to_kebab(&ident));
+            variants.push(ParsedVariant { ident, rendered });
+        }
+
+        i += 1;
+    }
+    (variants, lines.len() - 1)
+}
+
+/// Extract the leading PascalCase identifier from a line, if any. Lines
+/// that begin with a non-uppercase character (lower-case field names,
+/// `}`, `)`, etc.) return `None`.
+fn first_pascal_word(line: &str) -> Option<String> {
+    let mut chars = line.chars();
+    let first = chars.next()?;
+    if !first.is_ascii_uppercase() {
+        return None;
+    }
+    let mut out = String::new();
+    out.push(first);
+    for c in chars {
+        if c.is_ascii_alphanumeric() || c == '_' {
+            out.push(c);
+        } else {
+            break;
+        }
+    }
+    // Variants must be followed by `,`, `{`, `(`, or end of line — that's
+    // already true for lines that start with a PascalCase token in the
+    // codebase style (no enclosing parens, no leading expressions).
+    Some(out)
+}
+
+/// Parse `#[command(name = "X")]` and return `X`. Aliases (`alias = ...`)
+/// are not honoured — the spec says to use the primary rendered name.
+fn parse_command_name_override(attr: &str) -> Option<String> {
+    let key = "name = \"";
+    let start = attr.find(key)? + key.len();
+    let rest = &attr[start..];
+    let end = rest.find('"')?;
+    Some(rest[..end].to_string())
+}
+
+#[test]
+fn cli_subcommands_are_sorted() {
+    let cmd_dir = project_root().join("src/commands");
+    let entries = std::fs::read_dir(&cmd_dir).expect("read src/commands");
+
+    let mut files: Vec<std::path::PathBuf> = entries
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("rs"))
+        .collect();
+    files.sort();
+
+    let mut total_enums = 0;
+    for file in &files {
+        let source = std::fs::read_to_string(file).expect("read source");
+        for parsed in parse_subcommand_enums(&source) {
+            total_enums += 1;
+            assert_sorted_variants(file, &parsed);
+        }
+    }
+
+    // Sanity check: we found a non-trivial number of Subcommand enums.
+    // If parsing breaks, this guards against silently asserting nothing.
+    assert!(
+        total_enums >= 15,
+        "expected at least 15 Subcommand enums under src/commands/, found {}",
+        total_enums,
+    );
+}
+
+fn assert_sorted_variants(file: &std::path::Path, parsed: &ParsedEnum) {
+    let names: Vec<&str> = parsed.variants.iter().map(|v| v.rendered.as_str()).collect();
+    for window in names.windows(2) {
+        if window[0] > window[1] {
+            panic!(
+                "{}: enum {}: variants out of order — expected `{}` before `{}` but got `{}` before `{}`",
+                file.display(),
+                parsed.name,
+                window[1],
+                window[0],
+                window[0],
+                window[1],
+            );
+        }
+    }
+}
+
+// =============================================================================
 // TC-402: All source files under 400 lines and all quality checks pass
 // =============================================================================
 #[test]

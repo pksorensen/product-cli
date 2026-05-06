@@ -4,7 +4,8 @@ title: mcp drift check returns aggregate envelope across all ADRs
 type: scenario
 status: unimplemented
 validates:
-  features: []
+  features:
+  - FT-059
   adrs: []
 phase: 1
 runner: cargo-test

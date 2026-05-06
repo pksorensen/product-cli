@@ -9,21 +9,12 @@ use super::{acquire_write_lock, load_graph, BoxResult};
 
 #[derive(Subcommand)]
 pub enum GraphCommands {
-    /// Validate all links and report errors/warnings
-    Check {
-        /// Output as JSON (for CI)
+    /// Auto-link TCs to features via shared ADRs
+    Autolink {
+        /// Only show what would be linked (don't write)
         #[arg(long)]
-        format: Option<String>,
+        dry_run: bool,
     },
-    /// Regenerate index.ttl from all front-matter
-    Rebuild,
-    /// Execute a SPARQL query over the graph
-    Query {
-        /// SPARQL query string
-        query: String,
-    },
-    /// Show graph statistics
-    Stats,
     /// Show top ADRs by betweenness centrality
     Central {
         /// Number of results
@@ -33,11 +24,20 @@ pub enum GraphCommands {
         #[arg(long)]
         all: bool,
     },
-    /// Auto-link TCs to features via shared ADRs
-    Autolink {
-        /// Only show what would be linked (don't write)
+    /// Validate all links and report errors/warnings
+    Check {
+        /// Output as JSON (for CI)
         #[arg(long)]
-        dry_run: bool,
+        format: Option<String>,
+    },
+    /// Show feature x domain coverage matrix
+    Coverage {
+        /// Filter to a specific domain
+        #[arg(long)]
+        domain: Option<String>,
+        /// Output as JSON
+        #[arg(long)]
+        format: Option<String>,
     },
     /// Infer transitive TC→Feature links from shared ADRs (ADR-027)
     Infer {
@@ -51,27 +51,27 @@ pub enum GraphCommands {
         #[arg(long)]
         feature: Option<String>,
     },
-    /// Show feature x domain coverage matrix
-    Coverage {
-        /// Filter to a specific domain
-        #[arg(long)]
-        domain: Option<String>,
-        /// Output as JSON
-        #[arg(long)]
-        format: Option<String>,
+    /// Execute a SPARQL query over the graph
+    Query {
+        /// SPARQL query string
+        query: String,
     },
+    /// Regenerate index.ttl from all front-matter
+    Rebuild,
+    /// Show graph statistics
+    Stats,
 }
 
 pub(crate) fn handle_graph(cmd: GraphCommands, global_format: &str) -> BoxResult {
     match cmd {
-        GraphCommands::Check { format } => graph_check(format, global_format),
-        GraphCommands::Rebuild => graph_rebuild(),
-        GraphCommands::Query { query } => graph_query(&query),
-        GraphCommands::Stats => graph_stats(),
-        GraphCommands::Central { top, all } => graph_central(top, all),
         GraphCommands::Autolink { dry_run } => graph_autolink(dry_run),
-        GraphCommands::Infer { dry_run, adr, feature } => graph_infer(dry_run, adr, feature),
+        GraphCommands::Central { top, all } => graph_central(top, all),
+        GraphCommands::Check { format } => graph_check(format, global_format),
         GraphCommands::Coverage { domain, format } => graph_coverage(domain, format, global_format),
+        GraphCommands::Infer { dry_run, adr, feature } => graph_infer(dry_run, adr, feature),
+        GraphCommands::Query { query } => graph_query(&query),
+        GraphCommands::Rebuild => graph_rebuild(),
+        GraphCommands::Stats => graph_stats(),
     }
 }
 

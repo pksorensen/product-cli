@@ -19265,3 +19265,171 @@ fn ft_path_scoping_mcp_invalid_product_root_exits_nonzero() {
     );
 }
 
+// =============================================================================
+// FT-060 — Alphabetically Sorted CLI Help Output
+// =============================================================================
+//
+// TC-725 / TC-726 assert that `product --help` and `product <group> --help`
+// render their subcommand lists in ASCII-sorted order. The reordering is a
+// source-level change in the variant order of clap-deriving `Subcommand`
+// enums; these tests are the user-facing observation of that change.
+
+/// Extract the subcommand names from a `--help` output. Returns the names
+/// in source order (i.e. the order clap rendered them).
+///
+/// `--help` output is expected to contain a `Commands:` heading followed
+/// by lines of the form `  <name>  <description>`. The first whitespace-
+/// separated token on each indented line is the subcommand name.
+fn parse_subcommand_names(help: &str) -> Vec<String> {
+    let mut in_commands = false;
+    let mut names = Vec::new();
+    for line in help.lines() {
+        if line.starts_with("Commands:") {
+            in_commands = true;
+            continue;
+        }
+        if !in_commands {
+            continue;
+        }
+        // The Commands section ends at the next blank-line-then-non-indented
+        // section. clap consistently uses a blank line + a top-level header
+        // (e.g. `Options:`, `Arguments:`) for that. A bare blank line alone
+        // is not the terminator — clap can include blank lines mid-section
+        // in some configurations; we look for an unindented non-blank line
+        // beginning a new section.
+        if !line.is_empty() && !line.starts_with(' ') {
+            break;
+        }
+        let trimmed = line.trim_start();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if let Some(first) = trimmed.split_whitespace().next() {
+            // Continuation lines (long descriptions wrapping) start with
+            // a lowercase word that is *not* a clap subcommand name. clap
+            // wraps continuation lines to align with the description
+            // column, so they appear with deeper indentation. A pragmatic
+            // filter: subcommand lines are indented exactly two spaces.
+            if line.starts_with("  ") && !line.starts_with("   ") {
+                names.push(first.to_string());
+            }
+        }
+    }
+    names
+}
+
+/// Run `product <args>` against the harness and return stdout.
+fn capture_help(h: &Harness, args: &[&str]) -> String {
+    let out = h.run(args);
+    assert_eq!(
+        out.exit_code, 0,
+        "Expected exit 0 from `product {}`. stderr:\n{}",
+        args.join(" "),
+        out.stderr,
+    );
+    out.stdout
+}
+
+/// Assert that `names` is sorted under `str::cmp`. On failure, name the
+/// first out-of-order pair so the developer can fix the offending enum
+/// directly.
+fn assert_names_sorted(group: &str, names: &[String]) {
+    for window in names.windows(2) {
+        assert!(
+            window[0] <= window[1],
+            "{}: subcommand list out of order — expected `{}` before `{}` but got `{}` before `{}`.\nFull list: {:?}",
+            group,
+            window[1],
+            window[0],
+            window[0],
+            window[1],
+            names,
+        );
+    }
+}
+
+/// TC-725 — `product --help` lists top-level subcommands alphabetically.
+///
+/// The `help` row clap auto-injects is filtered out so the assertion
+/// reflects only Product-defined commands.
+#[test]
+fn tc_725_top_level_subcommands_listed_alphabetically() {
+    let h = Harness::new();
+    let stdout = capture_help(&h, &["--help"]);
+    let mut names = parse_subcommand_names(&stdout);
+    names.retain(|n| n != "help");
+
+    assert!(
+        names.len() >= 20,
+        "Expected at least 20 top-level subcommands, found {}: {:?}",
+        names.len(),
+        names,
+    );
+    assert_names_sorted("product --help", &names);
+}
+
+/// TC-726 — every nested subcommand group lists its children alphabetically.
+///
+/// The list of groups is enumerated explicitly so adding a new group
+/// requires updating this test (the test is the contract).
+#[test]
+fn tc_726_nested_subcommand_groups_listed_alphabetically() {
+    let h = Harness::new();
+    let groups = [
+        "feature", "adr", "test", "dep", "graph", "checklist", "migrate",
+        "gap", "author", "prompts", "drift", "tags", "metrics", "onboard",
+        "hash", "request",
+    ];
+    for group in &groups {
+        let stdout = capture_help(&h, &[group, "--help"]);
+        let mut names = parse_subcommand_names(&stdout);
+        names.retain(|n| n != "help");
+        assert!(
+            !names.is_empty(),
+            "Expected group `{}` to declare at least one subcommand. stdout:\n{}",
+            group, stdout,
+        );
+        assert_names_sorted(&format!("product {} --help", group), &names);
+    }
+}
+
+/// TC-728 — exit-criteria roll-up for FT-060.
+///
+/// Re-asserts the conditions covered by TC-725 and TC-726, plus checks
+/// that the fitness test (`cli_subcommands_are_sorted`) is present in
+/// `tests/code_quality_tests.rs`. This is the single gate `product
+/// verify FT-060` runs to confirm all observable surfaces are sorted
+/// and a regression-blocking fitness test is in place.
+#[test]
+fn tc_728_help_output_sortedness_contract_holds_across_full() {
+    // (1) Top-level help — same shape as TC-725.
+    let h = Harness::new();
+    let stdout = capture_help(&h, &["--help"]);
+    let mut names = parse_subcommand_names(&stdout);
+    names.retain(|n| n != "help");
+    assert_names_sorted("product --help", &names);
+
+    // (2) Every nested group — same shape as TC-726.
+    let groups = [
+        "feature", "adr", "test", "dep", "graph", "checklist", "migrate",
+        "gap", "author", "prompts", "drift", "tags", "metrics", "onboard",
+        "hash", "request",
+    ];
+    for group in &groups {
+        let stdout = capture_help(&h, &[group, "--help"]);
+        let mut names = parse_subcommand_names(&stdout);
+        names.retain(|n| n != "help");
+        assert_names_sorted(&format!("product {} --help", group), &names);
+    }
+
+    // (3) Fitness test exists — required by the formal exit-criteria
+    // block to block regressions.
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let cq = std::fs::read_to_string(manifest_dir.join("tests/code_quality_tests.rs"))
+        .expect("read tests/code_quality_tests.rs");
+    assert!(
+        cq.contains("fn cli_subcommands_are_sorted"),
+        "tests/code_quality_tests.rs must define `cli_subcommands_are_sorted` \
+         to block out-of-order regressions on future PRs.",
+    );
+}

@@ -8,18 +8,18 @@ use super::{load_graph, BoxResult};
 
 #[derive(Subcommand)]
 pub enum AuthorCommands {
-    /// Start a feature authoring session
-    Feature {
-        /// Feature ID (optional — enables preflight gate)
-        #[arg(long)]
-        feature: Option<String>,
+    /// Start an ADR authoring session
+    Adr {
         /// Agent CLI to host the session: claude | copilot
         /// (overrides `[author].cli` in product.toml)
         #[arg(long)]
         cli: Option<String>,
     },
-    /// Start an ADR authoring session
-    Adr {
+    /// Start a feature authoring session
+    Feature {
+        /// Feature ID (optional — enables preflight gate)
+        #[arg(long)]
+        feature: Option<String>,
         /// Agent CLI to host the session: claude | copilot
         /// (overrides `[author].cli` in product.toml)
         #[arg(long)]

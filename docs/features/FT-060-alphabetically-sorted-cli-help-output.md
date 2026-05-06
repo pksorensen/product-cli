@@ -2,19 +2,25 @@
 id: FT-060
 title: Alphabetically Sorted CLI Help Output
 phase: 1
-status: planned
+status: complete
 depends-on: []
 adrs:
 - ADR-013
 - ADR-029
 - ADR-018
+- ADR-043
 tests:
 - TC-725
 - TC-726
 - TC-727
 - TC-728
 domains: []
-domains-acknowledged: {}
+domains-acknowledged:
+  ADR-040: Cosmetic enum reordering — no verify pipeline or LLM boundary surface area touched
+  ADR-047: Functional spec for help-output ordering lives in this feature body, per ADR-047
+  ADR-041: No removal/deprecation — variants are reordered, not removed
+  ADR-042: TCs use reserved structural types (scenario, invariant, exit-criteria); no new TC types
+  ADR-048: No state layout changes — feature only touches src/commands/ enum order
 ---
 
 ## Description

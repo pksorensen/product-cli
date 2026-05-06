@@ -10,38 +10,6 @@ mod adr_write_ops {
 
 #[derive(Subcommand)]
 pub enum AdrCommands {
-    /// List all ADRs
-    List {
-        #[arg(long)]
-        status: Option<String>,
-    },
-    /// Show an ADR's details
-    Show { id: String },
-    /// List features that reference this ADR
-    Features { id: String },
-    /// List tests that validate this ADR
-    Tests { id: String },
-    /// Create a new ADR file
-    New {
-        /// ADR title
-        title: String,
-    },
-    /// Set ADR status
-    Status {
-        /// ADR ID
-        id: String,
-        /// New status: proposed, accepted, superseded, abandoned
-        new_status: String,
-        /// When setting to superseded, specify the replacement ADR
-        #[arg(long)]
-        by: Option<String>,
-    },
-    /// Review staged ADR files
-    Review {
-        /// Only review staged files (for pre-commit hook)
-        #[arg(long)]
-        staged: bool,
-    },
     /// Record a legitimate amendment to an accepted ADR (ADR-032)
     Amend {
         /// ADR ID
@@ -49,55 +17,6 @@ pub enum AdrCommands {
         /// Reason for the amendment (mandatory)
         #[arg(long)]
         reason: Option<String>,
-    },
-    /// Seal an accepted ADR that predates content-hash (ADR-032)
-    Rehash {
-        /// ADR ID (omit with --all to seal all)
-        id: Option<String>,
-        /// Seal all accepted ADRs without content-hash
-        #[arg(long)]
-        all: bool,
-    },
-    /// Add or remove concern domains on an ADR
-    Domain {
-        /// ADR ID
-        id: String,
-        /// Domain to add (repeatable)
-        #[arg(long)]
-        add: Vec<String>,
-        /// Domain to remove (repeatable)
-        #[arg(long)]
-        remove: Vec<String>,
-    },
-    /// Set ADR scope
-    Scope {
-        /// ADR ID
-        id: String,
-        /// Scope value: cross-cutting, domain, feature-specific
-        scope: String,
-    },
-    /// Manage ADR supersession (bidirectional write)
-    Supersede {
-        /// ADR ID (the newer ADR)
-        id: String,
-        /// ADR that this ADR supersedes
-        #[arg(long)]
-        supersedes: Option<String>,
-        /// Remove supersession link to this ADR
-        #[arg(long)]
-        remove: Option<String>,
-    },
-    /// Add or remove governed source files on an ADR
-    #[command(name = "source-files")]
-    SourceFiles {
-        /// ADR ID
-        id: String,
-        /// Source file/directory to add (repeatable)
-        #[arg(long)]
-        add: Vec<String>,
-        /// Source file/directory to remove (repeatable)
-        #[arg(long)]
-        remove: Vec<String>,
     },
     /// Structural conflict check — cycles, symmetry, domain overlap (ADR-040)
     #[command(name = "check-conflicts")]
@@ -114,35 +33,116 @@ pub enum AdrCommands {
         #[arg(long, default_value = "markdown")]
         format: String,
     },
+    /// Add or remove concern domains on an ADR
+    Domain {
+        /// ADR ID
+        id: String,
+        /// Domain to add (repeatable)
+        #[arg(long)]
+        add: Vec<String>,
+        /// Domain to remove (repeatable)
+        #[arg(long)]
+        remove: Vec<String>,
+    },
+    /// List features that reference this ADR
+    Features { id: String },
+    /// List all ADRs
+    List {
+        #[arg(long)]
+        status: Option<String>,
+    },
+    /// Create a new ADR file
+    New {
+        /// ADR title
+        title: String,
+    },
+    /// Seal an accepted ADR that predates content-hash (ADR-032)
+    Rehash {
+        /// ADR ID (omit with --all to seal all)
+        id: Option<String>,
+        /// Seal all accepted ADRs without content-hash
+        #[arg(long)]
+        all: bool,
+    },
+    /// Review staged ADR files
+    Review {
+        /// Only review staged files (for pre-commit hook)
+        #[arg(long)]
+        staged: bool,
+    },
+    /// Set ADR scope
+    Scope {
+        /// ADR ID
+        id: String,
+        /// Scope value: cross-cutting, domain, feature-specific
+        scope: String,
+    },
+    /// Show an ADR's details
+    Show { id: String },
+    /// Add or remove governed source files on an ADR
+    #[command(name = "source-files")]
+    SourceFiles {
+        /// ADR ID
+        id: String,
+        /// Source file/directory to add (repeatable)
+        #[arg(long)]
+        add: Vec<String>,
+        /// Source file/directory to remove (repeatable)
+        #[arg(long)]
+        remove: Vec<String>,
+    },
+    /// Set ADR status
+    Status {
+        /// ADR ID
+        id: String,
+        /// New status: proposed, accepted, superseded, abandoned
+        new_status: String,
+        /// When setting to superseded, specify the replacement ADR
+        #[arg(long)]
+        by: Option<String>,
+    },
+    /// Manage ADR supersession (bidirectional write)
+    Supersede {
+        /// ADR ID (the newer ADR)
+        id: String,
+        /// ADR that this ADR supersedes
+        #[arg(long)]
+        supersedes: Option<String>,
+        /// Remove supersession link to this ADR
+        #[arg(long)]
+        remove: Option<String>,
+    },
+    /// List tests that validate this ADR
+    Tests { id: String },
 }
 
 pub(crate) fn handle_adr(cmd: AdrCommands, fmt: &str) -> BoxResult {
     match cmd {
-        AdrCommands::List { status } => super::render(adr_list(status), fmt),
-        AdrCommands::Show { id } => super::render(adr_show(&id), fmt),
-        AdrCommands::Features { id } => super::render(adr_features(&id), fmt),
-        AdrCommands::Tests { id } => super::render(adr_tests(&id), fmt),
-        AdrCommands::New { title } => super::render(adr_new(&title), fmt),
-        AdrCommands::Status { id, new_status, by } => {
-            super::render(adr_status(&id, &new_status, by), fmt)
-        }
-        AdrCommands::Review { staged } => adr_review(staged),
         AdrCommands::Amend { id, reason } => super::render(super::adr_seal::adr_amend(&id, reason), fmt),
-        AdrCommands::Rehash { id, all } => super::render(super::adr_seal::adr_rehash(id, all), fmt),
-        AdrCommands::Domain { id, add, remove } => {
-            super::render(adr_write_ops::adr_domain(&id, add, remove), fmt)
-        }
-        AdrCommands::Scope { id, scope } => super::render(adr_write_ops::adr_scope(&id, &scope), fmt),
-        AdrCommands::Supersede { id, supersedes, remove } => {
-            super::render(adr_write_ops::adr_supersede(&id, supersedes, remove), fmt)
-        }
-        AdrCommands::SourceFiles { id, add, remove } => {
-            super::render(adr_write_ops::adr_source_files(&id, add, remove), fmt)
-        }
         AdrCommands::CheckConflicts { id } => {
             super::render(super::adr_conflicts::adr_check_conflicts(id, fmt), fmt)
         }
         AdrCommands::ConflictBundle { id, format } => super::adr_conflicts::adr_conflict_bundle(&id, &format),
+        AdrCommands::Domain { id, add, remove } => {
+            super::render(adr_write_ops::adr_domain(&id, add, remove), fmt)
+        }
+        AdrCommands::Features { id } => super::render(adr_features(&id), fmt),
+        AdrCommands::List { status } => super::render(adr_list(status), fmt),
+        AdrCommands::New { title } => super::render(adr_new(&title), fmt),
+        AdrCommands::Rehash { id, all } => super::render(super::adr_seal::adr_rehash(id, all), fmt),
+        AdrCommands::Review { staged } => adr_review(staged),
+        AdrCommands::Scope { id, scope } => super::render(adr_write_ops::adr_scope(&id, &scope), fmt),
+        AdrCommands::Show { id } => super::render(adr_show(&id), fmt),
+        AdrCommands::SourceFiles { id, add, remove } => {
+            super::render(adr_write_ops::adr_source_files(&id, add, remove), fmt)
+        }
+        AdrCommands::Status { id, new_status, by } => {
+            super::render(adr_status(&id, &new_status, by), fmt)
+        }
+        AdrCommands::Supersede { id, supersedes, remove } => {
+            super::render(adr_write_ops::adr_supersede(&id, supersedes, remove), fmt)
+        }
+        AdrCommands::Tests { id } => super::render(adr_tests(&id), fmt),
     }
 }
 

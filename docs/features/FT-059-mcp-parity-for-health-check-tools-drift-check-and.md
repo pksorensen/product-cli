@@ -14,6 +14,7 @@ adrs:
 - ADR-020
 - ADR-023
 - ADR-026
+- ADR-043
 tests:
 - TC-717
 - TC-718
@@ -26,7 +27,13 @@ tests:
 domains:
 - api
 - error-handling
-domains-acknowledged: {}
+domains-acknowledged:
+  ADR-040: Read-only health-check tools — no writes, no verify pipeline involvement; LLM boundary unaffected
+  ADR-018: FT-059 adds new MCP tool registrations and integration tests for them; testing strategy (property/session/LLM bench) is followed by adding scenario+invariant+exit-criteria TCs (TC-717..TC-724) per ADR-018 conventions
+  ADR-041: No removal/deprecation semantics — purely additive MCP tool surface
+  ADR-048: No state layout changes — feature reuses existing graph and config under .product/
+  ADR-042: TCs use existing reserved structural types (scenario, invariant, exit-criteria); no new TC types introduced
+  ADR-047: Functional spec for the two new MCP tools lives in this feature body, not a separate artifact, per ADR-047
 ---
 
 ## Description

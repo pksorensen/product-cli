@@ -4,7 +4,8 @@ title: FT-059 exit criteria — health-check parity gate
 type: exit-criteria
 status: unimplemented
 validates:
-  features: []
+  features:
+  - FT-059
   adrs: []
 phase: 1
 runner: cargo-test

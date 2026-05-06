@@ -4,7 +4,8 @@ title: mcp preflight returns cross-cutting domain and dep coverage
 type: scenario
 status: unimplemented
 validates:
-  features: []
+  features:
+  - FT-059
   adrs: []
 phase: 1
 runner: cargo-test

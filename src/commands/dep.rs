@@ -9,6 +9,25 @@ use super::{load_graph_typed, BoxResult, CmdResult, Output};
 
 #[derive(Subcommand)]
 pub enum DepCommands {
+    /// Produce a dependency bill of materials
+    Bom {
+        /// Output format: text or json
+        #[arg(long)]
+        format: Option<String>,
+    },
+    /// Run availability check for a dependency
+    Check {
+        /// Dependency ID (omit with --all to check all)
+        id: Option<String>,
+        /// Check all dependencies
+        #[arg(long)]
+        all: bool,
+    },
+    /// Show which features use a dependency
+    Features {
+        /// Dependency ID
+        id: String,
+    },
     /// List all dependencies
     List {
         /// Filter by dependency type (library, service, api, tool, hardware, runtime)
@@ -23,39 +42,20 @@ pub enum DepCommands {
         /// Dependency ID (e.g. DEP-001)
         id: String,
     },
-    /// Show which features use a dependency
-    Features {
-        /// Dependency ID
-        id: String,
-    },
-    /// Run availability check for a dependency
-    Check {
-        /// Dependency ID (omit with --all to check all)
-        id: Option<String>,
-        /// Check all dependencies
-        #[arg(long)]
-        all: bool,
-    },
-    /// Produce a dependency bill of materials
-    Bom {
-        /// Output format: text or json
-        #[arg(long)]
-        format: Option<String>,
-    },
 }
 
 pub(crate) fn handle_dep(cmd: DepCommands, global_fmt: &str) -> BoxResult {
     match cmd {
-        DepCommands::List { r#type, status } => {
-            super::render(dep_list(r#type, status), global_fmt)
-        }
-        DepCommands::Show { id } => super::render(dep_show(&id), global_fmt),
-        DepCommands::Features { id } => super::render(dep_features(&id), global_fmt),
-        DepCommands::Check { id, all } => dep_check(id, all),
         DepCommands::Bom { format } => {
             let fmt = format.as_deref().unwrap_or(global_fmt);
             super::render(dep_bom(), fmt)
         }
+        DepCommands::Check { id, all } => dep_check(id, all),
+        DepCommands::Features { id } => super::render(dep_features(&id), global_fmt),
+        DepCommands::List { r#type, status } => {
+            super::render(dep_list(r#type, status), global_fmt)
+        }
+        DepCommands::Show { id } => super::render(dep_show(&id), global_fmt),
     }
 }
 

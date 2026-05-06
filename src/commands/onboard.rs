@@ -22,6 +22,14 @@ pub enum OnboardCommands {
         #[arg(long)]
         no_validate: bool,
     },
+    /// Seed the knowledge graph from triaged candidates
+    Seed {
+        /// Path to triaged.json from triage phase
+        source: String,
+        /// Show what would be created without writing files
+        #[arg(long)]
+        dry_run: bool,
+    },
     /// Triage decision candidates (confirm, reject, merge)
     Triage {
         /// Path to candidates.json from scan phase
@@ -33,14 +41,6 @@ pub enum OnboardCommands {
         #[arg(long, default_value = "triaged.json")]
         output: String,
     },
-    /// Seed the knowledge graph from triaged candidates
-    Seed {
-        /// Path to triaged.json from triage phase
-        source: String,
-        /// Show what would be created without writing files
-        #[arg(long)]
-        dry_run: bool,
-    },
 }
 
 pub(crate) fn handle_onboard(cmd: OnboardCommands) -> BoxResult {
@@ -51,12 +51,12 @@ pub(crate) fn handle_onboard(cmd: OnboardCommands) -> BoxResult {
             max_candidates,
             no_validate,
         } => onboard_scan(&source, &output, max_candidates, no_validate),
+        OnboardCommands::Seed { source, dry_run } => onboard_seed(&source, dry_run),
         OnboardCommands::Triage {
             source,
             interactive,
             output,
         } => onboard_triage(&source, interactive, &output),
-        OnboardCommands::Seed { source, dry_run } => onboard_seed(&source, dry_run),
     }
 }
 

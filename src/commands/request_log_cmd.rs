@@ -9,6 +9,9 @@ use super::BoxResult;
 
 #[derive(Subcommand)]
 pub enum LogCommands {
+    /// Rewrite absolute `file:` paths in historical entries to repo-relative
+    /// form and append a `path-relativize` migrate entry (FT-051).
+    MigratePaths,
     /// List log entries (optionally filtered by --type or --feature)
     Show {
         /// Filter by entry type (create, change, verify, etc.)
@@ -27,9 +30,6 @@ pub enum LogCommands {
         #[arg(long = "against-tags")]
         against_tags: bool,
     },
-    /// Rewrite absolute `file:` paths in historical entries to repo-relative
-    /// form and append a `path-relativize` migrate entry (FT-051).
-    MigratePaths,
 }
 
 pub fn handle_log(cmd: LogCommands, _fmt: &str) -> BoxResult {
@@ -40,6 +40,9 @@ pub fn handle_log(cmd: LogCommands, _fmt: &str) -> BoxResult {
     let log_p = log_path(&root, Some(&config.paths.requests));
 
     match cmd {
+        LogCommands::MigratePaths => {
+            run_migrate_paths(&root, &config.paths.requests)?;
+        }
         LogCommands::Show { type_filter, feature, show } => {
             let entries = match append::load_all_entries(&log_p) {
                 Ok(v) => v,
@@ -82,9 +85,6 @@ pub fn handle_log(cmd: LogCommands, _fmt: &str) -> BoxResult {
         }
         LogCommands::Verify { against_tags } => {
             run_log_verify(&log_p, &root, against_tags);
-        }
-        LogCommands::MigratePaths => {
-            run_migrate_paths(&root, &config.paths.requests)?;
         }
     }
     Ok(())

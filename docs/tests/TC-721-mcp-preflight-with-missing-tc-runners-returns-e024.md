@@ -4,7 +4,8 @@ title: mcp preflight with missing tc runners returns E024
 type: scenario
 status: unimplemented
 validates:
-  features: []
+  features:
+  - FT-059
   adrs: []
 phase: 1
 runner: cargo-test

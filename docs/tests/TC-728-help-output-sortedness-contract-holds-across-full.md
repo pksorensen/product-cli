@@ -2,13 +2,16 @@
 id: TC-728
 title: help output sortedness contract holds across full surface
 type: exit-criteria
-status: unimplemented
+status: passing
 validates:
-  features: []
+  features:
+  - FT-060
   adrs: []
 phase: 1
 runner: cargo-test
 runner-args: tc_728_help_output_sortedness_contract_holds_across_full
+last-run: 2026-05-06T12:48:18.813666159+00:00
+last-run-duration: 0.5s
 ---
 
 ## Exit Criteria

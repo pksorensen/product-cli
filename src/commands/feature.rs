@@ -10,34 +10,37 @@ mod feature_write_ops {
 
 #[derive(Subcommand)]
 pub enum FeatureCommands {
-    /// List all features
-    List {
+    /// Acknowledge a domain or ADR gap with reasoning
+    Acknowledge {
+        /// Feature ID
+        id: String,
+        /// Domain to acknowledge
         #[arg(long)]
-        phase: Option<u32>,
+        domain: Option<String>,
+        /// ADR to acknowledge
         #[arg(long)]
-        status: Option<String>,
+        adr: Option<String>,
+        /// Reasoning (required unless --remove)
+        #[arg(long)]
+        reason: Option<String>,
+        /// Remove the acknowledgement instead of adding
+        #[arg(long)]
+        remove: bool,
     },
-    /// Show a feature's details
-    Show { id: String },
     /// List ADRs linked to a feature
     Adrs { id: String },
-    /// List test criteria for a feature
-    Tests { id: String },
     /// Show the full dependency tree for a feature
     Deps { id: String },
-    /// Show the next feature to implement (topological order)
-    Next {
-        /// Skip phase gate checks (allow phase-2+ features even if prior gates fail)
+    /// Add or remove concern domains on a feature
+    Domain {
+        /// Feature ID
+        id: String,
+        /// Domain to add (repeatable)
         #[arg(long)]
-        ignore_phase_gate: bool,
-    },
-    /// Create a new feature file
-    New {
-        /// Feature title
-        title: String,
-        /// Phase number
-        #[arg(long, default_value = "1")]
-        phase: u32,
+        add: Vec<String>,
+        /// Domain to remove (repeatable)
+        #[arg(long)]
+        remove: Vec<String>,
     },
     /// Link a feature to an ADR, test, or dependency
     Link {
@@ -56,6 +59,29 @@ pub enum FeatureCommands {
         #[arg(long)]
         yes: bool,
     },
+    /// List all features
+    List {
+        #[arg(long)]
+        phase: Option<u32>,
+        #[arg(long)]
+        status: Option<String>,
+    },
+    /// Create a new feature file
+    New {
+        /// Feature title
+        title: String,
+        /// Phase number
+        #[arg(long, default_value = "1")]
+        phase: u32,
+    },
+    /// Show the next feature to implement (topological order)
+    Next {
+        /// Skip phase gate checks (allow phase-2+ features even if prior gates fail)
+        #[arg(long)]
+        ignore_phase_gate: bool,
+    },
+    /// Show a feature's details
+    Show { id: String },
     /// Set feature status
     Status {
         /// Feature ID
@@ -63,61 +89,35 @@ pub enum FeatureCommands {
         /// New status: planned, in-progress, complete, abandoned
         new_status: String,
     },
-    /// Acknowledge a domain or ADR gap with reasoning
-    Acknowledge {
-        /// Feature ID
-        id: String,
-        /// Domain to acknowledge
-        #[arg(long)]
-        domain: Option<String>,
-        /// ADR to acknowledge
-        #[arg(long)]
-        adr: Option<String>,
-        /// Reasoning (required unless --remove)
-        #[arg(long)]
-        reason: Option<String>,
-        /// Remove the acknowledgement instead of adding
-        #[arg(long)]
-        remove: bool,
-    },
-    /// Add or remove concern domains on a feature
-    Domain {
-        /// Feature ID
-        id: String,
-        /// Domain to add (repeatable)
-        #[arg(long)]
-        add: Vec<String>,
-        /// Domain to remove (repeatable)
-        #[arg(long)]
-        remove: Vec<String>,
-    },
+    /// List test criteria for a feature
+    Tests { id: String },
 }
 
 pub(crate) fn handle_feature(cmd: FeatureCommands, fmt: &str) -> BoxResult {
     match cmd {
-        FeatureCommands::List { phase, status } => {
-            super::render(feature_list(phase, status), fmt)
+        FeatureCommands::Acknowledge { id, domain, adr, reason, remove } => {
+            feature_write_ops::feature_acknowledge(&id, domain, adr, reason, remove)
         }
-        FeatureCommands::Show { id } => super::render(feature_show(&id), fmt),
         FeatureCommands::Adrs { id } => super::render(feature_adrs(&id), fmt),
-        FeatureCommands::Tests { id } => super::render(feature_tests(&id), fmt),
         FeatureCommands::Deps { id } => super::render(feature_deps(&id), fmt),
-        FeatureCommands::Next { ignore_phase_gate } => feature_next(ignore_phase_gate),
-        FeatureCommands::New { title, phase } => {
-            super::render(feature_write_ops::feature_new(&title, phase), fmt)
+        FeatureCommands::Domain { id, add, remove } => {
+            super::render(feature_write_ops::feature_domain(&id, add, remove), fmt)
         }
         FeatureCommands::Link { id, adr, test, dep, yes } => {
             feature_write_ops::feature_link(&id, adr, test, dep, yes)
         }
+        FeatureCommands::List { phase, status } => {
+            super::render(feature_list(phase, status), fmt)
+        }
+        FeatureCommands::New { title, phase } => {
+            super::render(feature_write_ops::feature_new(&title, phase), fmt)
+        }
+        FeatureCommands::Next { ignore_phase_gate } => feature_next(ignore_phase_gate),
+        FeatureCommands::Show { id } => super::render(feature_show(&id), fmt),
         FeatureCommands::Status { id, new_status } => {
             super::render(feature_write_ops::feature_status(&id, &new_status), fmt)
         }
-        FeatureCommands::Acknowledge { id, domain, adr, reason, remove } => {
-            feature_write_ops::feature_acknowledge(&id, domain, adr, reason, remove)
-        }
-        FeatureCommands::Domain { id, add, remove } => {
-            super::render(feature_write_ops::feature_domain(&id, add, remove), fmt)
-        }
+        FeatureCommands::Tests { id } => super::render(feature_tests(&id), fmt),
     }
 }
 

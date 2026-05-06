@@ -2,13 +2,16 @@
 id: TC-727
 title: cli subcommands are sorted fitness test catches regressions
 type: invariant
-status: unimplemented
+status: passing
 validates:
-  features: []
+  features:
+  - FT-060
   adrs: []
 phase: 1
 runner: cargo-test
 runner-args: cli_subcommands_are_sorted
+last-run: 2026-05-06T12:48:18.813666159+00:00
+last-run-duration: 0.3s
 ---
 
 ## Invariant

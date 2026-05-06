@@ -2,13 +2,16 @@
 id: TC-725
 title: top level subcommands listed alphabetically
 type: scenario
-status: unimplemented
+status: passing
 validates:
-  features: []
+  features:
+  - FT-060
   adrs: []
 phase: 1
 runner: cargo-test
 runner-args: tc_725_top_level_subcommands_listed_alphabetically
+last-run: 2026-05-06T12:48:18.813666159+00:00
+last-run-duration: 0.3s
 ---
 
 ## Scenario

@@ -8,17 +8,6 @@ use super::{load_graph, BoxResult};
 
 #[derive(Subcommand)]
 pub enum GapCommands {
-    /// Check for gaps (optionally for a single ADR or feature, or only changed ADRs)
-    Check {
-        /// ADR or Feature ID to check (omit for all)
-        adr_id: Option<String>,
-        /// Only check ADRs changed in the last commit
-        #[arg(long)]
-        changed: bool,
-        /// Output format: text or json
-        #[arg(long, default_value = "json")]
-        format: String,
-    },
     /// Produce an LLM-ready gap-analysis bundle on stdout (ADR-040)
     Bundle {
         /// ADR ID (mutually exclusive with --all / --changed)
@@ -33,8 +22,21 @@ pub enum GapCommands {
         #[arg(long, default_value = "markdown")]
         format: String,
     },
+    /// Check for gaps (optionally for a single ADR or feature, or only changed ADRs)
+    Check {
+        /// ADR or Feature ID to check (omit for all)
+        adr_id: Option<String>,
+        /// Only check ADRs changed in the last commit
+        #[arg(long)]
+        changed: bool,
+        /// Output format: text or json
+        #[arg(long, default_value = "json")]
+        format: String,
+    },
     /// Print a human-readable gap report for all ADRs
     Report,
+    /// Print gap analysis statistics
+    Stats,
     /// Suppress a gap finding
     Suppress {
         /// Gap finding ID to suppress
@@ -48,8 +50,6 @@ pub enum GapCommands {
         /// Gap finding ID to unsuppress
         gap_id: String,
     },
-    /// Print gap analysis statistics
-    Stats,
 }
 
 pub(crate) fn handle_gap(cmd: GapCommands, _global_fmt: &str) -> BoxResult {
@@ -58,20 +58,20 @@ pub(crate) fn handle_gap(cmd: GapCommands, _global_fmt: &str) -> BoxResult {
     let mut baseline = gap::GapBaseline::load(&baseline_path);
 
     match cmd {
-        GapCommands::Check { adr_id, changed, format } => {
-            gap_check(adr_id, changed, &format, &graph, &mut baseline, &baseline_path, &root)
-        }
         GapCommands::Bundle { adr_id, all, changed, format } => {
             gap_bundle(adr_id, all, changed, &format, &graph, &root)
         }
+        GapCommands::Check { adr_id, changed, format } => {
+            gap_check(adr_id, changed, &format, &graph, &mut baseline, &baseline_path, &root)
+        }
         GapCommands::Report => gap_report(&graph, &baseline),
+        GapCommands::Stats => gap_stats(&graph, &baseline),
         GapCommands::Suppress { gap_id, reason } => {
             gap_suppress(&mut baseline, &gap_id, &reason, &baseline_path)
         }
         GapCommands::Unsuppress { gap_id } => {
             gap_unsuppress(&mut baseline, &gap_id, &baseline_path)
         }
-        GapCommands::Stats => gap_stats(&graph, &baseline),
     }
 }
 

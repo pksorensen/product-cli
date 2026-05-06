@@ -18,10 +18,10 @@ use super::BoxResult;
 
 #[derive(Subcommand)]
 pub enum BuilderCommands {
-    /// Open a new interactive draft (kind = create or change)
-    New {
-        /// Draft kind: "create" or "change"
-        kind: String,
+    /// Append one artifact or mutation to the draft
+    Add {
+        #[command(subcommand)]
+        command: AddCommands,
     },
     /// Resume editing the existing draft
     Continue,
@@ -31,35 +31,35 @@ pub enum BuilderCommands {
         #[arg(long)]
         force: bool,
     },
-    /// Show a summary of the draft with per-artifact indicators
-    Status,
+    /// Open the draft in `$EDITOR`
+    Edit,
+    /// Open a new interactive draft (kind = create or change)
+    New {
+        /// Draft kind: "create" or "change"
+        kind: String,
+    },
     /// Print the raw draft YAML
     Show,
+    /// Show a summary of the draft with per-artifact indicators
+    Status,
     /// Apply the draft atomically and archive it on success
     Submit {
         /// Submit through warnings without prompting
         #[arg(long)]
         force: bool,
     },
-    /// Open the draft in `$EDITOR`
-    Edit,
-    /// Append one artifact or mutation to the draft
-    Add {
-        #[command(subcommand)]
-        command: AddCommands,
-    },
 }
 
 pub(crate) fn handle_builder(cmd: BuilderCommands) -> BoxResult {
     match cmd {
-        BuilderCommands::New { kind } => cmd_new(&kind),
+        BuilderCommands::Add { command } => request_builder_add::handle_add(command),
         BuilderCommands::Continue => cmd_continue(),
         BuilderCommands::Discard { force } => cmd_discard(force),
-        BuilderCommands::Status => cmd_status(),
-        BuilderCommands::Show => cmd_show(),
-        BuilderCommands::Submit { force } => cmd_submit(force),
         BuilderCommands::Edit => cmd_edit(),
-        BuilderCommands::Add { command } => request_builder_add::handle_add(command),
+        BuilderCommands::New { kind } => cmd_new(&kind),
+        BuilderCommands::Show => cmd_show(),
+        BuilderCommands::Status => cmd_status(),
+        BuilderCommands::Submit { force } => cmd_submit(force),
     }
 }
 

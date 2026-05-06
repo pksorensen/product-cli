@@ -4,7 +4,8 @@ title: mcp drift check with unknown id returns E022
 type: scenario
 status: unimplemented
 validates:
-  features: []
+  features:
+  - FT-059
   adrs: []
 phase: 1
 runner: cargo-test
