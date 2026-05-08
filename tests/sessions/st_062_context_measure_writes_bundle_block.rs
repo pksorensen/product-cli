@@ -46,7 +46,7 @@ artifacts:
         "feature should not have a bundle block before --measure; got:\n{before}"
     );
 
-    let out = s.run(&["context", &ft, "--measure"]);
+    let out = s.run(&["context", &ft, "--measure", "--target", "legacy"]);
     out.assert_exit(0);
 
     let after = s.read(&ft_file);

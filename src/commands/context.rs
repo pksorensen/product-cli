@@ -73,13 +73,12 @@ fn is_templates_cmd(args: &ContextArgs<'_>) -> bool {
         || args.reset.is_some()
 }
 
-/// Resolve the effective target name.
+/// Resolve the effective target name (FT-063 selection rule).
 ///
-/// When `--target` is unset and `[context].default-target` is unset in
-/// product.toml, return `None` — that triggers the legacy bundle renderer,
-/// which produces the AISP-framed output pre-FT-063 callers rely on. An
-/// explicit `--target NAME` (or a configured `default-target`) opts into
-/// per-model template rendering.
+/// Priority: `--for-llm` (alias for `claude-opus`) → explicit `--target` →
+/// `[context].default-target` from product.toml → `human` (fallback).
+/// Returns `None` only for non-feature artifacts (ADRs, phase bundles)
+/// that are not covered by feature-bundle templates.
 fn resolve_effective_target(
     args: &ContextArgs<'_>,
     config: &product_lib::config::ProductConfig,
@@ -95,7 +94,13 @@ fn resolve_effective_target(
         return Some(t);
     }
     if !graph.adrs.contains_key(id) && args.phase.is_none() {
-        return config.context.default_target.clone();
+        return Some(
+            config
+                .context
+                .default_target
+                .clone()
+                .unwrap_or_else(|| "human".to_string()),
+        );
     }
     None
 }
@@ -115,7 +120,7 @@ fn render_artifact(
     });
     if graph.features.contains_key(id) {
         if let Some(target_name) = effective_target {
-            return render_with_template(root, graph, id, args.depth, &target_name, config);
+            return render_with_template(root, graph, id, args.depth, &target_name, config, args.measure);
         }
         match context::bundle_feature_with_product(graph, id, args.depth, order_by_centrality, product_info) {
             Some(bundle) => {
@@ -145,7 +150,11 @@ fn render_with_template(
     depth: usize,
     target: &str,
     config: &product_lib::config::ProductConfig,
+    measure: bool,
 ) -> BoxResult {
+    if target == "legacy" {
+        return render_legacy_bundle(graph, feature_id, depth, config, root, measure);
+    }
     let outcome = template::resolve_all(root);
     let resolved = match outcome.resolved.get(target) {
         Some(t) => t.clone(),
@@ -186,6 +195,40 @@ fn render_with_template(
     }
     print!("{}", rendered.content);
     Ok(())
+}
+
+/// Render the legacy AISP-framed bundle.
+///
+/// Reachable via the synthetic `--target legacy` escape hatch (and the
+/// equivalent MCP `target: "legacy"` argument). The legacy bundler predates
+/// FT-063's per-model templates and emits AISP triples + a `Context Bundle:`
+/// header. Kept reachable so pre-FT-063 callers and integration tests that
+/// validate the AISP renderer continue to work.
+fn render_legacy_bundle(
+    graph: &product_lib::graph::KnowledgeGraph,
+    feature_id: &str,
+    depth: usize,
+    config: &product_lib::config::ProductConfig,
+    root: &Path,
+    measure: bool,
+) -> BoxResult {
+    let pi = config.responsibility().map(|resp| context::BundleProductInfo {
+        product_name: config.product_name(),
+        responsibility: resp,
+    });
+    match context::bundle_feature_with_product(graph, feature_id, depth, true, pi) {
+        Some(bundle) => {
+            if measure {
+                measure_and_write(feature_id, graph, &bundle, root)?;
+            }
+            print!("{}", bundle);
+            Ok(())
+        }
+        None => {
+            eprintln!("Feature {} not found", feature_id);
+            process::exit(1);
+        }
+    }
 }
 
 /// Measure a single feature and update its front-matter + metrics.jsonl.

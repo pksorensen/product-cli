@@ -241,13 +241,14 @@ fn it_004_graph_check_orphaned() {
         .assert_stderr_contains("W001");
 }
 
-/// IT-005: context FT-001 → exit 0, contains ⟦Ω:Bundle⟧
+/// IT-005: context FT-001 → exit 0, contains feature id (FT-063 default falls
+/// back to the `human` template, which emits `# FT-001 — Test Feature`).
 #[test]
 fn it_005_context_bundle_header() {
     let h = fixture_minimal();
     let out = h.run(&["context", "FT-001"]);
     out.assert_exit(0)
-        .assert_stdout_contains("Bundle");
+        .assert_stdout_contains("FT-001");
     // No YAML front-matter delimiters in output (stripped)
     assert!(!out.stdout.starts_with("---\n"));
 }
@@ -364,13 +365,15 @@ fn mcp_003_stdio_feature_list() {
     assert!(out.contains("FT-001"), "should contain FT-001: {}", out);
 }
 
-/// MCP-004: product_context returns bundle
+/// MCP-004: product_context returns bundle. FT-063 routes the no-target
+/// path through the `human` template, so the response includes the rendered
+/// content keyed by `content` and the feature id appears in the body.
 #[test]
 fn mcp_004_stdio_context() {
     let h = fixture_minimal();
     let input = r#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"product_context","arguments":{"id":"FT-001","depth":1}}}"#;
     let out = run_mcp_stdio(&h, input);
-    assert!(out.contains("Bundle"), "should contain Bundle: {}", out);
+    assert!(out.contains("FT-001"), "should contain FT-001: {}", out);
 }
 
 /// MCP-005: product_graph_check returns errors/warnings
@@ -1246,7 +1249,7 @@ fn tc_152_ft007_exit_criteria() {
         "docs/tests/TC-001-test.md",
         "---\nid: TC-001\ntitle: Test TC\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\n---\n\nTest body.\n",
     );
-    let out = h1.run(&["context", "FT-001"]);
+    let out = h1.run(&["context", "FT-001", "--target", "legacy"]);
     out.assert_exit(0);
     assert!(
         !out.stdout.starts_with("---\n"),
@@ -1263,7 +1266,7 @@ fn tc_152_ft007_exit_criteria() {
         "docs/features/FT-001-test.md",
         "---\nid: FT-001\ntitle: Test\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\n---\n\n```rust\nfn main() {}\n```\n\n| Col1 | Col2 |\n|------|------|\n| a    | b    |\n\n- item 1\n  - nested\n",
     );
-    let out = h2.run(&["context", "FT-001"]);
+    let out = h2.run(&["context", "FT-001", "--target", "legacy"]);
     out.assert_exit(0);
     assert!(out.stdout.contains("```rust"), "Code blocks should be preserved");
     assert!(out.stdout.contains("fn main() {}"), "Code content should be preserved");
@@ -1281,7 +1284,7 @@ fn tc_152_ft007_exit_criteria() {
         "docs/tests/TC-001-formal.md",
         "---\nid: TC-001\ntitle: Formal Test\ntype: invariant\nstatus: passing\nvalidates:\n  features: [FT-001]\n  adrs: []\nphase: 1\n---\n\n⟦Σ:Types⟧{\n  Graph≜⟨nodes:Node+, edges:Edge*⟩\n  CentralityScore≜Float\n}\n\n⟦Γ:Invariants⟧{\n  ∀g:Graph, ∀n∈g.nodes: betweenness(g,n) ≥ 0.0 ∧ betweenness(g,n) ≤ 1.0\n}\n\n⟦Ε⟧⟨δ≜0.95;φ≜100;τ≜◊⁺⟩\n",
     );
-    let out = h3.run(&["context", "FT-001"]);
+    let out = h3.run(&["context", "FT-001", "--target", "legacy"]);
     out.assert_exit(0);
     // Formal blocks must be preserved in context output
     assert!(out.stdout.contains("⟦Σ:Types⟧"), "Types block should be preserved in context bundle");
@@ -1386,7 +1389,7 @@ fn tc_004_cargo_build_release() {
 #[test]
 fn tc_011_markdown_front_matter_strip() {
     let h = fixture_minimal();
-    let out = h.run(&["context", "FT-001"]);
+    let out = h.run(&["context", "FT-001", "--target", "legacy"]);
     out.assert_exit(0);
     // No YAML front-matter delimiters in output
     assert!(!out.stdout.starts_with("---\n"), "Context should not start with front-matter delimiter");
@@ -2520,7 +2523,7 @@ fn tc_020_product_context_ft_001() {
         "---\nid: TC-001\ntitle: Binary compiles\ntype: exit-criteria\nstatus: passing\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\n---\n\nBinary compile test.\n",
     );
 
-    let out = h.run(&["context", "FT-001"]);
+    let out = h.run(&["context", "FT-001", "--target", "legacy"]);
     out.assert_exit(0);
 
     // Bundle header
@@ -2806,7 +2809,7 @@ fn tc_158_ft011_exit_criteria() {
         "---\nid: TC-002\ntitle: Scenario Test\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\n---\n\nScenario test body.\n",
     );
 
-    let out = h.run(&["context", "FT-001"]);
+    let out = h.run(&["context", "FT-001", "--target", "legacy"]);
     out.assert_exit(0);
 
     // 1. Bundle header with AISP formal block
@@ -2902,7 +2905,7 @@ fn tc_018_context_bundle_header() {
         "---\nid: TC-001\ntitle: Test TC\ntype: scenario\nstatus: passing\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 2\n---\n\nTC body.\n",
     );
 
-    let out = h.run(&["context", "FT-001"]);
+    let out = h.run(&["context", "FT-001", "--target", "legacy"]);
     out.assert_exit(0);
 
     // Header should contain correct metadata
@@ -3890,7 +3893,7 @@ fn tc_132_cross_cutting_always_in_bundle() {
     h.write("docs/features/FT-009-rate-limiting.md",
         "---\nid: FT-009\ntitle: Rate Limiting\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {}\n---\n\nRate limiting feature.\n");
 
-    let out = h.run(&["context", "FT-009"]);
+    let out = h.run(&["context", "FT-009", "--target", "legacy"]);
     out.assert_exit(0);
 
     // ADR-013 should be included even though not explicitly linked
@@ -3927,7 +3930,7 @@ fn tc_133_cross_cutting_bundle_position() {
     h.write("docs/features/FT-009-rate-limiting.md",
         "---\nid: FT-009\ntitle: Rate Limiting\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: [ADR-004]\ntests: []\ndomains: [security]\ndomains-acknowledged: {}\n---\n\nRate limiting feature.\n");
 
-    let out = h.run(&["context", "FT-009"]);
+    let out = h.run(&["context", "FT-009", "--target", "legacy"]);
     out.assert_exit(0);
 
     let bundle = &out.stdout;
@@ -3988,7 +3991,7 @@ fn tc_134_domain_top2_centrality() {
     h.write("docs/features/FT-009-rate-limiting.md",
         "---\nid: FT-009\ntitle: Rate Limiting\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: [security]\ndomains-acknowledged: {}\n---\n\nRate limiting.\n");
 
-    let out = h.run(&["context", "FT-009"]);
+    let out = h.run(&["context", "FT-009", "--target", "legacy"]);
     out.assert_exit(0);
 
     let bundle = &out.stdout;
@@ -7739,7 +7742,7 @@ fn tc_201_context_measure_updates_frontmatter() {
         "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: passing\nvalidates:\n  features: [FT-001]\n  adrs: []\nphase: 1\n---\n\nTest one body.\n",
     );
 
-    let out = h.run(&["context", "FT-001", "--measure"]);
+    let out = h.run(&["context", "FT-001", "--measure", "--target", "legacy"]);
     out.assert_exit(0);
 
     // Read the updated feature file
@@ -7797,7 +7800,7 @@ fn tc_202_context_measure_appends_metrics() {
         "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: passing\nvalidates:\n  features: [FT-001]\n  adrs: []\nphase: 1\n---\n\nTest body.\n",
     );
 
-    let out = h.run(&["context", "FT-001", "--measure"]);
+    let out = h.run(&["context", "FT-001", "--measure", "--target", "legacy"]);
     out.assert_exit(0);
 
     // Check metrics.jsonl exists and has correct content
@@ -7840,11 +7843,11 @@ fn tc_203_context_measure_idempotent() {
     );
 
     // First run
-    let out1 = h.run(&["context", "FT-001", "--measure"]);
+    let out1 = h.run(&["context", "FT-001", "--measure", "--target", "legacy"]);
     out1.assert_exit(0);
 
     // Second run
-    let out2 = h.run(&["context", "FT-001", "--measure"]);
+    let out2 = h.run(&["context", "FT-001", "--measure", "--target", "legacy"]);
     out2.assert_exit(0);
 
     // metrics.jsonl should have exactly 2 lines (one per invocation)
@@ -7887,7 +7890,7 @@ fn tc_205_product_context_ft001_measure() {
         "---\nid: TC-001\ntitle: Test One\ntype: scenario\nstatus: passing\nvalidates:\n  features: [FT-001]\n  adrs: []\nphase: 1\n---\n\nTest body.\n",
     );
 
-    let out = h.run(&["context", "FT-001", "--measure"]);
+    let out = h.run(&["context", "FT-001", "--measure", "--target", "legacy"]);
     out.assert_exit(0);
     // The bundle should still be printed to stdout
     out.assert_stdout_contains("Context Bundle: FT-001");
@@ -9840,7 +9843,7 @@ fn tc_390_dep_context_bundle_section() {
     let h = fixture_dep_service();
     // FT-007 uses DEP-005 (service); also link DEP-001 to FT-007
     h.write("docs/dependencies/DEP-001-openraft.md", "---\nid: DEP-001\ntitle: openraft\ntype: library\nstatus: active\nfeatures: [FT-001, FT-007]\nadrs: [ADR-002]\navailability-check: ~\nbreaking-change-risk: medium\n---\n\nLib.\n");
-    let out = h.run(&["context", "FT-007", "--depth", "2"]);
+    let out = h.run(&["context", "FT-007", "--depth", "2", "--target", "legacy"]);
     out.assert_exit(0);
     assert!(out.stdout.contains("## Dependencies"), "Bundle should contain Dependencies section");
     assert!(out.stdout.contains("DEP-005"), "DEP-005 should be in bundle");
@@ -13068,7 +13071,7 @@ fn tc_473_product_responsibility_mcp_tool_returns_name_and_responsibility() {
 #[test]
 fn tc_474_context_bundle_includes_responsibility_in_header() {
     let h = fixture_with_responsibility();
-    let out = h.run(&["context", "FT-001"]);
+    let out = h.run(&["context", "FT-001", "--target", "legacy"]);
     out.assert_exit(0);
     assert!(out.stdout.contains("product\u{225c}picloud:Product"),
         "bundle should contain product line: {}", out.stdout);
@@ -13185,7 +13188,7 @@ fn tc_479_product_responsibility_feature_complete() {
     assert!(mcp_out.stdout.contains("picloud"), "MCP should return product name");
 
     // 3. Context bundle includes responsibility (TC-474)
-    let ctx = h.run(&["context", "FT-001"]);
+    let ctx = h.run(&["context", "FT-001", "--target", "legacy"]);
     ctx.assert_exit(0);
     assert!(ctx.stdout.contains("product\u{225c}picloud:Product"), "bundle has product");
     assert!(ctx.stdout.contains("responsibility\u{225c}"), "bundle has responsibility");
@@ -13648,8 +13651,8 @@ fn fixture_bundle_summary() -> Harness {
 fn tc_480_graph_stats_shows_bundle_token_summary() {
     let h = fixture_bundle_summary();
     // Measure 2 of 3 features.
-    h.run(&["context", "FT-001", "--measure"]).assert_exit(0);
-    h.run(&["context", "FT-002", "--measure"]).assert_exit(0);
+    h.run(&["context", "FT-001", "--measure", "--target", "legacy"]).assert_exit(0);
+    h.run(&["context", "FT-002", "--measure", "--target", "legacy"]).assert_exit(0);
 
     let out = h.run(&["graph", "stats"]);
     out.assert_exit(0);
@@ -20477,6 +20480,67 @@ fn tc_766_for_llm_flag_is_deprecated_alias_for_target() {
     let conflict = h.run(&["context", "FT-001", "--for-llm", "--target", "human"]);
     conflict.assert_exit(1);
     conflict.assert_stderr_contains("E028");
+}
+
+#[test]
+fn tc_768_default_target_fallback_uses_human_template() {
+    // Strict version of TC-758. Per FT-063's selection rule, when no --target
+    // flag is passed and no [context].default-target is set, the bundle MUST
+    // be rendered through the `human` template — byte-identical to what
+    // `--target human` produces. The earlier loophole emitted the legacy
+    // AISP-framed bundle instead.
+    let h = ft063_fixture();
+    let no_flag = h.run(&["context", "FT-001"]);
+    no_flag.assert_exit(0);
+    let explicit = h.run(&["context", "FT-001", "--target", "human"]);
+    explicit.assert_exit(0);
+    assert_eq!(
+        no_flag.stdout, explicit.stdout,
+        "no-flag default must be byte-equal to --target human; diff suggests the legacy renderer is still in the fallback path"
+    );
+    // Sanity: the human template never emits XML framing.
+    assert!(
+        !no_flag.stdout.contains("<context_bundle"),
+        "human-template fallback must not emit <context_bundle>: {}",
+        &no_flag.stdout[..200.min(no_flag.stdout.len())]
+    );
+}
+
+#[test]
+fn tc_769_mcp_product_context_uses_id_parameter() {
+    // The canonical input property for product_context is `id`, matching every
+    // other MCP read tool. Lock this in: the input schema must advertise `id`,
+    // and a tools/call with `id` must succeed.
+    let h = ft063_fixture();
+    let listing = run_mcp_stdio(&h, r#"{"jsonrpc":"2.0","id":0,"method":"tools/list"}"#);
+    assert!(
+        listing.contains("product_context"),
+        "tools/list must include product_context: {}",
+        listing
+    );
+    // The schema declares `id` as a required property — assert both forms
+    // (escaped and unescaped) since the response is a JSON-encoded string.
+    assert!(
+        listing.contains("\\\"required\\\":[\\\"id\\\"]")
+            || listing.contains("\"required\":[\"id\"]"),
+        "product_context inputSchema must mark `id` as required; got: {}",
+        listing
+    );
+    assert!(
+        !listing.contains("feature_id"),
+        "product_context must not advertise the legacy `feature_id` property; got: {}",
+        listing
+    );
+    // And a call with `id` must produce the templated envelope.
+    let call = run_mcp_stdio(
+        &h,
+        r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"product_context","arguments":{"id":"FT-001","target":"claude-opus"}}}"#,
+    );
+    assert!(
+        call.contains("claude-opus"),
+        "call with id=FT-001, target=claude-opus must succeed; got: {}",
+        call
+    );
 }
 
 #[test]

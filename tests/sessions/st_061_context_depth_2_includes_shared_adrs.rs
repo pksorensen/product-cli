@@ -52,7 +52,9 @@ artifacts:
     let adr_deep = r.id_for("adr-deep");
 
     // Depth 1: direct ADR is present, deep ADR is NOT.
-    let depth1 = s.run(&["context", &ft, "--depth", "1"]);
+    // Use --target legacy: the depth-2 reachability semantics are validated
+    // against the AISP bundler (the templated path renders direct ADRs only).
+    let depth1 = s.run(&["context", &ft, "--depth", "1", "--target", "legacy"]);
     depth1.assert_exit(0);
     assert!(
         depth1.stdout.contains(&adr_direct),
@@ -61,7 +63,7 @@ artifacts:
     );
 
     // Depth 2: deep ADR surfaces through the shared dep.
-    let depth2 = s.run(&["context", &ft, "--depth", "2"]);
+    let depth2 = s.run(&["context", &ft, "--depth", "2", "--target", "legacy"]);
     depth2.assert_exit(0);
     assert!(
         depth2.stdout.contains(&adr_direct),

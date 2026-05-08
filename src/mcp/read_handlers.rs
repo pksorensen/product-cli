@@ -28,54 +28,55 @@ pub(crate) fn handle_context(
 
     // Feature path with target template (FT-063).
     //
-    // When `target` is supplied OR `[context].default-target` is set, render
-    // through the per-model template renderer. When neither is set, fall back
-    // to the legacy AISP-framed bundle for backward compatibility with
-    // pre-FT-063 MCP consumers.
+    // Selection priority: explicit `target` → `[context].default-target`
+    // → `human` (fallback). The fallback to `human` matches the CLI
+    // selection rule and the FT-063 invariant that an omitted target
+    // resolves to the `human` template. The synthetic `legacy` target
+    // routes through the pre-FT-063 AISP-framed bundler.
     if graph.features.contains_key(id) {
         let config = crate::config::ProductConfig::load_from_root(repo_root)
             .map_err(|e| format!("{}", e))?;
-        let target_name: Option<String> =
-            explicit_target.or_else(|| config.context.default_target.clone());
-        if let Some(target_name) = target_name {
-            let outcome = crate::context::template::resolve_all(repo_root);
-            let resolved = match outcome.resolved.get(&target_name) {
-                Some(t) => t.clone(),
-                None => {
-                    let mut available: Vec<String> = outcome.resolved.keys().cloned().collect();
-                    available.sort();
-                    return Err(format!(
-                        "error[E027]: unknown context target {:?}; available: {}",
-                        target_name,
-                        available.join(", "),
-                    ));
-                }
-            };
-            let pi = config.responsibility().map(|resp| crate::context::template::ProductInfo {
-                name: config.product_name(),
+        let target_name: String = explicit_target
+            .or_else(|| config.context.default_target.clone())
+            .unwrap_or_else(|| "human".to_string());
+        if target_name == "legacy" {
+            let pi = config.responsibility().map(|resp| crate::context::BundleProductInfo {
+                product_name: config.product_name(),
                 responsibility: resp,
             });
-            let rendered = crate::context::template::render_feature(graph, id, depth, &resolved, pi)
+            let bundle = crate::context::bundle_feature_with_product(graph, id, depth, true, pi)
                 .ok_or_else(|| format!("Feature {} not found", id))?;
             return Ok(serde_json::json!({
-                "format": rendered.format,
-                "target": rendered.target,
-                "content": rendered.content,
-                "token_count_approx": rendered.token_count_approx,
-                "exceeded_target_max": rendered.exceeded_target_max,
-                "exceeded_hard_max": rendered.exceeded_hard_max,
+                "content": bundle,
                 "type": "text",
             }));
         }
-        // Legacy fallback: AISP-framed bundle.
-        let pi = config.responsibility().map(|resp| crate::context::BundleProductInfo {
-            product_name: config.product_name(),
+        let outcome = crate::context::template::resolve_all(repo_root);
+        let resolved = match outcome.resolved.get(&target_name) {
+            Some(t) => t.clone(),
+            None => {
+                let mut available: Vec<String> = outcome.resolved.keys().cloned().collect();
+                available.sort();
+                return Err(format!(
+                    "error[E027]: unknown context target {:?}; available: {}",
+                    target_name,
+                    available.join(", "),
+                ));
+            }
+        };
+        let pi = config.responsibility().map(|resp| crate::context::template::ProductInfo {
+            name: config.product_name(),
             responsibility: resp,
         });
-        let bundle = crate::context::bundle_feature_with_product(graph, id, depth, true, pi)
+        let rendered = crate::context::template::render_feature(graph, id, depth, &resolved, pi)
             .ok_or_else(|| format!("Feature {} not found", id))?;
         return Ok(serde_json::json!({
-            "content": bundle,
+            "format": rendered.format,
+            "target": rendered.target,
+            "content": rendered.content,
+            "token_count_approx": rendered.token_count_approx,
+            "exceeded_target_max": rendered.exceeded_target_max,
+            "exceeded_hard_max": rendered.exceeded_hard_max,
             "type": "text",
         }));
     }

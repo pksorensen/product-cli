@@ -46,6 +46,8 @@ tests:
 - TC-765
 - TC-766
 - TC-767
+- TC-768
+- TC-769
 domains:
 - api
 - observability
@@ -266,8 +268,9 @@ product context templates --reset NAME        # remove user override
 ### `product_context` MCP tool (extended)
 
 ```json
-// Input
-{ "feature_id": "FT-009", "depth": 2, "target": "claude-opus" }
+// Input — note: the canonical property name is `id`, matching every
+// other read tool (product_feature_show, product_adr_show, etc.).
+{ "id": "FT-009", "depth": 2, "target": "claude-opus" }
 
 // Output
 {
