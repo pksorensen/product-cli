@@ -13,7 +13,7 @@ pub(crate) fn handle_feature_new(
     let title = args.get("title").and_then(|v| v.as_str()).unwrap_or_default();
     let phase = args.get("phase").and_then(|v| v.as_u64()).unwrap_or(1) as u32;
     let existing: Vec<String> = graph.features.keys().cloned().collect();
-    let config = ProductConfig::load(&repo_root.join("product.toml"))
+    let config = ProductConfig::load_from_root(repo_root)
         .map_err(|e| format!("{}", e))?;
     let id = crate::parser::next_id(&config.prefixes.feature, &existing);
     let filename = crate::parser::id_to_filename(&id, title);
@@ -50,7 +50,7 @@ pub(crate) fn handle_adr_new(
 ) -> Result<Value, String> {
     let title = args.get("title").and_then(|v| v.as_str()).unwrap_or_default();
     let existing: Vec<String> = graph.adrs.keys().cloned().collect();
-    let config = ProductConfig::load(&repo_root.join("product.toml"))
+    let config = ProductConfig::load_from_root(repo_root)
         .map_err(|e| format!("{}", e))?;
     let id = crate::parser::next_id(&config.prefixes.adr, &existing);
     let filename = crate::parser::id_to_filename(&id, title);
@@ -90,7 +90,7 @@ pub(crate) fn handle_test_new(
     let title = args.get("title").and_then(|v| v.as_str()).unwrap_or_default();
     let test_type = args.get("test_type").and_then(|v| v.as_str()).unwrap_or("scenario");
     let existing: Vec<String> = graph.tests.keys().cloned().collect();
-    let config = ProductConfig::load(&repo_root.join("product.toml"))
+    let config = ProductConfig::load_from_root(repo_root)
         .map_err(|e| format!("{}", e))?;
     let id = crate::parser::next_id(&config.prefixes.test, &existing);
     let filename = crate::parser::id_to_filename(&id, title);
@@ -165,7 +165,7 @@ pub(crate) fn handle_body_update(
 ) -> Result<Value, String> {
     let id = args.get("id").and_then(|v| v.as_str()).unwrap_or_default();
     let body = args.get("body").and_then(|v| v.as_str()).unwrap_or_default();
-    let config = ProductConfig::load(&repo_root.join("product.toml"))
+    let config = ProductConfig::load_from_root(repo_root)
         .map_err(|e| format!("{}", e))?;
     if id.starts_with(&config.prefixes.feature) {
         update_feature_body(id, body, graph)?;

@@ -12,7 +12,7 @@ pub fn handle_request_validate(args: &Value, repo_root: &Path) -> Result<Value, 
         .and_then(|v| v.as_str())
         .ok_or_else(|| "missing 'request_yaml' argument".to_string())?;
 
-    let config = ProductConfig::load(&repo_root.join("product.toml"))
+    let config = ProductConfig::load_from_root(repo_root)
         .map_err(|e| format!("{}", e))?;
 
     let request = match request::parse_request_str(yaml) {
@@ -37,7 +37,7 @@ pub fn handle_request_apply(args: &Value, repo_root: &Path) -> Result<Value, Str
         .and_then(|v| v.as_str())
         .ok_or_else(|| "missing 'request_yaml' argument".to_string())?;
 
-    let config = ProductConfig::load(&repo_root.join("product.toml"))
+    let config = ProductConfig::load_from_root(repo_root)
         .map_err(|e| format!("{}", e))?;
 
     let request = match request::parse_request_str(yaml) {

@@ -112,7 +112,7 @@ fn handle_tools_call(request: &JsonRpcRequest, registry: &ToolRegistry) -> JsonR
 // ---------------------------------------------------------------------------
 
 fn load_graph(repo_root: &Path) -> Result<KnowledgeGraph, String> {
-    let config = ProductConfig::load(&repo_root.join("product.toml"))
+    let config = ProductConfig::load_from_root(repo_root)
         .map_err(|e| format!("{}", e))?;
     let features_dir = config.resolve_path(repo_root, &config.paths.features);
     let adrs_dir = config.resolve_path(repo_root, &config.paths.adrs);
@@ -145,7 +145,7 @@ fn dispatch_tool(
         "product_graph_check" => {
             let mut result = graph.check();
             // W019: feature outside product responsibility (FT-039)
-            let config = crate::config::ProductConfig::load(&repo_root.join("product.toml"))
+            let config = crate::config::ProductConfig::load_from_root(repo_root)
                 .map_err(|e| format!("{}", e))?;
             crate::graph::responsibility::check_responsibility(
                 graph,

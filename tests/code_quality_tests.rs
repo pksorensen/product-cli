@@ -672,6 +672,63 @@ fn assert_sorted_variants(file: &std::path::Path, parsed: &ParsedEnum) {
 }
 
 // =============================================================================
+// FT-061: MCP and CLI handlers must use ProductConfig::load_from_root,
+// never `repo_root.join("product.toml")`. The hardcoded path defeated
+// `.product/config.toml` discovery against canonical-layout repos.
+// =============================================================================
+#[test]
+fn ft_061_mcp_handlers_do_not_hardcode_product_toml_path() {
+    let root = project_root();
+    let mcp_dir = root.join("src/mcp");
+    let mut offenders: Vec<String> = Vec::new();
+
+    fn walk(dir: &std::path::Path, offenders: &mut Vec<String>) {
+        let entries = match std::fs::read_dir(dir) {
+            Ok(e) => e,
+            Err(_) => return,
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                walk(&path, offenders);
+                continue;
+            }
+            if path.extension().and_then(|s| s.to_str()) != Some("rs") {
+                continue;
+            }
+            let source = match std::fs::read_to_string(&path) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+            for (lineno, line) in source.lines().enumerate() {
+                if line.contains("repo_root.join(\"product.toml\")") {
+                    offenders.push(format!("{}:{}", path.display(), lineno + 1));
+                }
+            }
+        }
+    }
+
+    walk(&mcp_dir, &mut offenders);
+
+    // Also gate src/commands/mcp_cmd.rs, where the same regression bit us.
+    let mcp_cmd = root.join("src/commands/mcp_cmd.rs");
+    if let Ok(source) = std::fs::read_to_string(&mcp_cmd) {
+        for (lineno, line) in source.lines().enumerate() {
+            if line.contains("repo_root.join(\"product.toml\")") {
+                offenders.push(format!("{}:{}", mcp_cmd.display(), lineno + 1));
+            }
+        }
+    }
+
+    assert!(
+        offenders.is_empty(),
+        "FT-061: MCP handlers must use ProductConfig::load_from_root; \
+         offending sites:\n  {}",
+        offenders.join("\n  "),
+    );
+}
+
+// =============================================================================
 // TC-402: All source files under 400 lines and all quality checks pass
 // =============================================================================
 #[test]

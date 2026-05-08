@@ -44,7 +44,7 @@ pub(crate) fn handle_drift_check(
     let baseline = drift::DriftBaseline::load(&baseline_path);
     let (source_roots, ignore) = drift_source_settings();
 
-    let config = ProductConfig::load(&repo_root.join("product.toml"))
+    let config = ProductConfig::load_from_root(repo_root)
         .map_err(|e| format!("{}", e))?;
     let impl_depth = config.tags.implementation_depth;
 

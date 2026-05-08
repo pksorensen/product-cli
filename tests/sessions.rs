@@ -145,3 +145,7 @@ mod st_701_discover_canonical_alias_legacy;
 
 #[path = "sessions/st_702_ft057_exit_criteria.rs"]
 mod st_702_ft057_exit_criteria;
+
+// FT-061 — MCP server and CLI honor `.product/config.toml` discovery
+#[path = "sessions/st_761_mcp_canonical_layout.rs"]
+mod st_761_mcp_canonical_layout;

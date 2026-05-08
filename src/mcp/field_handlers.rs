@@ -21,7 +21,7 @@ pub(crate) fn handle_feature_domain(
     let add = extract_string_array(args, "add");
     let remove = extract_string_array(args, "remove");
 
-    let config = ProductConfig::load(&repo_root.join("product.toml"))
+    let config = ProductConfig::load_from_root(repo_root)
         .map_err(|e| format!("{}", e))?;
     let f = graph.features.get(id).ok_or_else(|| format!("Feature {} not found", id))?;
 
@@ -90,7 +90,7 @@ pub(crate) fn handle_adr_domain(
     let add = extract_string_array(args, "add");
     let remove = extract_string_array(args, "remove");
 
-    let config = ProductConfig::load(&repo_root.join("product.toml"))
+    let config = ProductConfig::load_from_root(repo_root)
         .map_err(|e| format!("{}", e))?;
     let a = graph.adrs.get(id).ok_or_else(|| format!("ADR {} not found", id))?;
 
@@ -294,7 +294,7 @@ pub(crate) fn handle_test_runner(
     let timeout = args.get("timeout").and_then(|v| v.as_str());
     let requires = extract_string_array(args, "requires");
 
-    let config = ProductConfig::load(&repo_root.join("product.toml"))
+    let config = ProductConfig::load_from_root(repo_root)
         .map_err(|e| format!("{}", e))?;
     let t = graph.tests.get(id).ok_or_else(|| format!("TC {} not found", id))?;
 

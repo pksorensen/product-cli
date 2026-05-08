@@ -221,14 +221,17 @@ fn default_dep_prefix() -> String { "DEP".into() }
 /// Current schema version supported by this binary
 pub const CURRENT_SCHEMA_VERSION: u32 = 1;
 
+/// Filenames searched in FT-057 / ADR-048 discovery order:
+/// canonical, legacy alias inside `.product/`, then root legacy.
+pub const CONFIG_CANDIDATES: [&str; 3] = [
+    ".product/config.toml",
+    ".product/product.toml",
+    "product.toml",
+];
+
 /// Find a Product config file in `dir` per FT-057 / ADR-048 discovery order.
-/// Returns the first existing path among:
-/// 1. `.product/config.toml` (canonical)
-/// 2. `.product/product.toml` (legacy alias inside `.product/`)
-/// 3. `product.toml` (root, pre-`.product/` layout)
 pub fn find_config_in_dir(dir: &Path) -> Option<PathBuf> {
-    const CANDIDATES: [&str; 3] = [".product/config.toml", ".product/product.toml", "product.toml"];
-    for c in CANDIDATES {
+    for c in CONFIG_CANDIDATES {
         let p = dir.join(c);
         if p.exists() {
             return Some(p);
@@ -237,8 +240,21 @@ pub fn find_config_in_dir(dir: &Path) -> Option<PathBuf> {
     None
 }
 
-
 impl ProductConfig {
+    /// Load the Product config rooted at `root` per FT-057 / ADR-048
+    /// discovery order. Returns [`ProductError::ConfigError`] enumerating
+    /// the searched filenames when no candidate exists.
+    pub fn load_from_root(root: &Path) -> Result<Self> {
+        match find_config_in_dir(root) {
+            Some(path) => Self::load(&path),
+            None => Err(ProductError::ConfigError(format!(
+                "No product config file at {}: searched {}",
+                root.display(),
+                CONFIG_CANDIDATES.join(", "),
+            ))),
+        }
+    }
+
     /// Load product.toml from a path. Runs E017 immediately (ADR-042).
     pub fn load(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path).map_err(|e| {

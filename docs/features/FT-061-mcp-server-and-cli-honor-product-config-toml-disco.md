@@ -2,7 +2,7 @@
 id: FT-061
 title: MCP Server and CLI Honor `.product/config.toml` Discovery
 phase: 5
-status: planned
+status: complete
 depends-on: []
 adrs:
 - ADR-048

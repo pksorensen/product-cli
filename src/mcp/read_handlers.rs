@@ -6,14 +6,14 @@ use serde_json::Value;
 use std::path::Path;
 
 pub(crate) fn handle_responsibility(repo_root: &Path) -> Result<Value, String> {
-    let config = crate::config::ProductConfig::load(&repo_root.join("product.toml"))
+    let config = crate::config::ProductConfig::load_from_root(repo_root)
         .map_err(|e| format!("{}", e))?;
     match config.responsibility() {
         Some(responsibility) => Ok(serde_json::json!({
             "name": config.product_name(),
             "responsibility": responsibility,
         })),
-        None => Err("Product responsibility is not configured. Add a [product] section with a responsibility field to product.toml".to_string()),
+        None => Err("Product responsibility is not configured. Add a [product] section with a responsibility field to the product config file".to_string()),
     }
 }
 
@@ -174,7 +174,7 @@ pub(crate) fn handle_agent_context(
     graph: &KnowledgeGraph,
     repo_root: &Path,
 ) -> Result<Value, String> {
-    let config = crate::config::ProductConfig::load(&repo_root.join("product.toml"))
+    let config = crate::config::ProductConfig::load_from_root(repo_root)
         .map_err(|e| format!("{}", e))?;
     let content = crate::agent_context::generate_agent_md(&config, graph, repo_root);
     Ok(serde_json::json!({

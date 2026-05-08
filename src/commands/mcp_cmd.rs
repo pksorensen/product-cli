@@ -13,32 +13,27 @@ pub(crate) fn handle_mcp(
     repo: Option<String>,
     write_flag: bool,
 ) -> BoxResult {
-    let repo_root = if let Some(ref path) = repo {
-        PathBuf::from(path)
+    // Resolve the repo root + config in one shot. When `--repo` is supplied,
+    // walk the canonical → alias → legacy discovery order against that root
+    // (FT-057 / ADR-048). Otherwise reuse the config that `discover()`
+    // already loaded — no need to re-read the same file twice.
+    let (config, repo_root) = if let Some(ref path) = repo {
+        let root = PathBuf::from(path);
+        let cfg = ProductConfig::load_from_root(&root)?;
+        (cfg, root)
     } else {
-        let (_config, root) = ProductConfig::discover()?;
-        root
+        ProductConfig::discover()?
     };
 
-    // --write flag overrides product.toml mcp.write
-    let write_enabled = write_flag || {
-        let toml_path = repo_root.join("product.toml");
-        if toml_path.exists() {
-            let cfg = ProductConfig::load(&toml_path)?;
-            cfg.mcp.map(|m| m.write).unwrap_or(false)
-        } else {
-            false
-        }
-    };
+    let mcp_cfg = config.mcp.as_ref();
+
+    // --write flag overrides mcp.write from the config file.
+    let write_enabled = write_flag || mcp_cfg.map(|m| m.write).unwrap_or(false);
 
     if http {
-        let toml_path = repo_root.join("product.toml");
-        let cors_origins = if toml_path.exists() {
-            let cfg = ProductConfig::load(&toml_path)?;
-            cfg.mcp.map(|m| m.cors_origins).unwrap_or_default()
-        } else {
-            vec![]
-        };
+        let cors_origins = mcp_cfg
+            .map(|m| m.cors_origins.clone())
+            .unwrap_or_default();
         let rt = tokio::runtime::Runtime::new().map_err(|e| {
             ProductError::IoError(format!("Failed to create tokio runtime: {}", e))
         })?;

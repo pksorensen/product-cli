@@ -51,7 +51,7 @@ pub(crate) fn handle_preflight(
         }
     }
 
-    let config = ProductConfig::load(&repo_root.join("product.toml"))
+    let config = ProductConfig::load_from_root(repo_root)
         .map_err(|e| format!("{}", e))?;
     let result = domains::preflight(graph, id, &config.domains).map_err(|e| format!("{}", e))?;
 
