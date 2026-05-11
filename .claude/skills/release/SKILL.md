@@ -7,13 +7,15 @@ description: Cut a new release of the Product CLI by bumping the Cargo.toml vers
 
 The release pipeline (`.github/workflows/release.yml`) is driven by `cargo-dist`. It fires when a git tag matching `**[0-9]+.[0-9]+.[0-9]+*` is pushed and builds the GitHub Release artifacts from the tagged commit.
 
-A release therefore needs three things to all line up:
+A release therefore needs **five things to all line up** at the version `X.Y.Z`:
 
-1. `Cargo.toml` `version = "X.Y.Z"`
-2. A commit containing that bump on `main`
-3. A pushed tag `vX.Y.Z` pointing at that commit
+1. `Cargo.toml` — `version = "X.Y.Z"` (what `cargo-dist` reads at plan time)
+2. `.product/config.toml` — `version = "X.Y.Z"` (Product config; source of truth per FT-065 spec)
+3. `server.json` — both top-level `"version"` and `packages[0].version` set to `"X.Y.Z"` (MCP registry manifest)
+4. A commit containing all three bumps on `main`
+5. A pushed tag `vX.Y.Z` pointing at that commit
 
-If any one of these is missing or mismatched, `cargo-dist` refuses to plan the release (this is the failure mode that caused the 0.1.1 redo in commit `9c9f828`).
+If `Cargo.toml` doesn't match the tag, `cargo-dist` refuses to plan (failure that caused the 0.1.1 redo in commit `9c9f828`). If `.product/config.toml` and `server.json` diverge, **TC-776** (`tc_776_server_json_matches_product_toml_version_and_validates_against_pinned_schema`) fails in `cargo t` — but **nothing currently enforces parity with `Cargo.toml`**, so a mismatch there can ship and only be caught at the MCP-registry publish step (which is non-fatal per FT-065).
 
 ## When to use
 
@@ -64,18 +66,35 @@ grep -E '^version = ' Cargo.toml
 
 ### 4. Bump and commit
 
-Edit `Cargo.toml` line 3:
+Three files need editing in lockstep:
 
-```toml
-version = "X.Y.Z"
+1. **`Cargo.toml`** line 3:
+   ```toml
+   version = "X.Y.Z"
+   ```
+2. **`.product/config.toml`** — the top-level `version` field:
+   ```toml
+   version = "X.Y.Z"
+   ```
+3. **`server.json`** — both occurrences (top-level `"version"` and `packages[0].version`):
+   ```json
+   "version": "X.Y.Z"
+   ```
+
+`Cargo.lock` will update when you next run `cargo build`, but is not required for the tag to plan correctly.
+
+Verify the three are in agreement and TC-776 passes before committing:
+
+```bash
+grep -E '^version = ' Cargo.toml .product/config.toml
+grep -E '"version"' server.json
+cargo test --test integration_tests tc_776   # must pass
 ```
-
-That is the only file that needs editing for the release itself. `Cargo.lock` will update when you next run `cargo build`, but is not required for the tag to plan correctly.
 
 Commit using the established message style (see `git log --oneline --grep="Bump version"`):
 
 ```bash
-git add Cargo.toml
+git add Cargo.toml .product/config.toml server.json
 git commit -m "$(cat <<'EOF'
 Bump version to X.Y.Z
 
@@ -113,6 +132,7 @@ If the run fails immediately with a "version mismatch" error in `dist plan`, the
 ## Gotchas
 
 - **Cargo.toml version must equal the tag's version.** `cargo-dist` reads `Cargo.toml` from the tagged commit and refuses to plan if it doesn't match. This is the single most common failure mode — happened on 0.1.1 (commit `9c9f828`), which is the only reason we know.
+- **Three-file lockstep.** `Cargo.toml`, `.product/config.toml`, and `server.json` (twice) must all carry the same version string. Forgetting `.product/config.toml` and `server.json` is what shipped a stale `0.1` to the MCP registry through 0.1.0 and 0.1.1 — they were inherited untouched from the original config and never bumped. TC-776 enforces parity between the latter two; nothing enforces parity with `Cargo.toml`, so check by eye before committing.
 - **`git push` does not push tags.** You must push the tag separately with `git push origin vX.Y.Z` (or `git push --tags`, but explicit is better — avoids pushing stale local tags).
 - **Don't tag before the commit is pushed.** GitHub Actions checks out the tagged ref from the remote; an unpushed commit isn't fetchable.
 - **The `v0.1.0+<hash>` tags are nightlies, not releases.** Don't reuse that format for an intentional release — it'll match the cargo-dist regex but pollute the tag list. Plain `vX.Y.Z` only.
