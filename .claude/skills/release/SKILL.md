@@ -115,19 +115,24 @@ git push origin vX.Y.Z
 
 The tag must be `v`-prefixed to match the workflow trigger pattern and the existing tag convention (`v0.1.0`, `v0.1.1`, `v0.1.2`). The pipeline accepts other formats per the cargo-dist regex, but stay consistent with what's already there.
 
-### 6. Verify the pipeline started
+### 6. Verify the pipelines started
+
+Two workflows run for a release:
 
 ```bash
-gh run list --workflow=release.yml --limit 3
+gh run list --workflow=release.yml --limit 3       # cargo-dist build + GitHub Release
+gh run list --workflow=publish-mcp.yml --limit 3   # MCP registry publish (fires after the Release is created)
 ```
 
-The most recent run should show the tag you just pushed and a status of `queued` or `in_progress`. If you want to watch it through:
+The most recent `release.yml` run should show the tag you just pushed and a status of `queued` or `in_progress`. `publish-mcp.yml` is triggered by the `release.published` event, so it won't show until the `host` job in `release.yml` has called `gh release create`. Watch with:
 
 ```bash
 gh run watch
 ```
 
-If the run fails immediately with a "version mismatch" error in `dist plan`, the `Cargo.toml` version on the tagged commit does not match the tag. Fix by bumping `Cargo.toml`, committing, **deleting the tag** (`git tag -d vX.Y.Z && git push origin :refs/tags/vX.Y.Z`), and re-tagging on the new commit.
+If `release.yml` fails immediately with a "version mismatch" error in `dist plan`, the `Cargo.toml` version on the tagged commit does not match the tag. Fix by bumping `Cargo.toml`, committing, **deleting the tag** (`git tag -d vX.Y.Z && git push origin :refs/tags/vX.Y.Z`), and re-tagging on the new commit.
+
+If `publish-mcp.yml` fails at the "Verify server.json version matches the release tag" step, one of `Cargo.toml`, `server.json` top-level, or `server.json` packages[0] is out of step. The release itself has already shipped — fix the laggard and either rerun the workflow (`gh run rerun <id>`) or run `mcp-publisher publish` manually from a checkout of the tag.
 
 ## Gotchas
 
