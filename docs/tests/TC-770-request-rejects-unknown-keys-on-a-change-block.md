@@ -2,12 +2,16 @@
 id: TC-770
 title: request rejects unknown keys on a change block
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-064
   adrs: []
 phase: 5
+runner: cargo-test
+runner-args: "tc_770_request_rejects_unknown_keys_on_a_change_block"
+last-run: 2026-05-11T09:30:05.870828163+00:00
+last-run-duration: 0.2s
 ---
 
 A `type: change` request whose top-level change entry carries `op:`,

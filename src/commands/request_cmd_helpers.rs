@@ -42,6 +42,7 @@ pub fn print_json_result(result: &ApplyResult) {
         "applied": result.applied,
         "created": result.created,
         "changed": result.changed,
+        "deleted": result.deleted,
         "findings": result.findings,
         "graph_check_clean": result.graph_check_clean,
         "started_tags": result.started_tags,
@@ -67,6 +68,9 @@ pub fn print_apply_summary(result: &request::ApplyResult) {
     for c in &result.changed {
         println!("    {}  ({} mutation(s)) -> {}", c.id, c.mutations, c.file);
     }
+    for d in &result.deleted {
+        println!("    {}  (deleted) -> {}", d.id, d.file);
+    }
     if result.graph_check_clean {
         println!("\n  Graph check:  clean");
     } else {
@@ -79,9 +83,10 @@ pub fn print_apply_summary(result: &request::ApplyResult) {
         eprintln!("{}", warn);
     }
     println!(
-        "  Done. {} created, {} changed.",
+        "  Done. {} created, {} changed, {} deleted.",
         result.created.len(),
-        result.changed.len()
+        result.changed.len(),
+        result.deleted.len()
     );
 }
 

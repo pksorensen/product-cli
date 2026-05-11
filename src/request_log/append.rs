@@ -125,6 +125,8 @@ pub struct ApplyEntryParams<'a> {
     pub request_json: serde_json::Value,
     pub created: Vec<ArtifactRef>,
     pub changed: Vec<ArtifactRef>,
+    /// FT-064 — artifacts removed by a `type: delete` request.
+    pub deleted: Vec<ArtifactRef>,
 }
 
 /// Shortcut: append an Apply-style entry (`create` / `change` /
@@ -144,6 +146,7 @@ pub fn append_apply_entry(
         mut request_json,
         created,
         changed,
+        deleted,
     } = params;
     let applied_at = chrono_now();
     let id = compute_entry_id(&applied_at, log_path);
@@ -153,6 +156,7 @@ pub fn append_apply_entry(
     super::paths::relativise_files_in_value(&mut request_json, repo_root);
     let created = relativise_refs(&created, repo_root);
     let changed = relativise_refs(&changed, repo_root);
+    let deleted = relativise_refs(&deleted, repo_root);
 
     let entry = Entry {
         id,
@@ -167,6 +171,7 @@ pub fn append_apply_entry(
             request: request_json,
             created,
             changed,
+            deleted,
         },
     };
     append_entry(log_path, entry)

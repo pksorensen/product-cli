@@ -37,6 +37,15 @@ pub enum RequestCommands {
     Continue,
     /// Open $EDITOR with a create template in .product/requests/
     Create,
+    /// Delete one or more artifacts atomically (FT-064)
+    Delete {
+        /// Artifact IDs to delete (one or more)
+        #[arg(required = true)]
+        ids: Vec<String>,
+        /// Reason for the deletion (recorded in requests.jsonl)
+        #[arg(long, required = true)]
+        reason: String,
+    },
     /// Show what would change without writing
     Diff {
         /// Path to the request YAML file (defaults to the active draft)
@@ -110,6 +119,7 @@ pub(crate) fn handle_request(cmd: RequestCommands, fmt: &str) -> BoxResult {
             request_builder_cmd::handle_builder(BuilderCommands::Continue)
         }
         RequestCommands::Create => create_draft("create"),
+        RequestCommands::Delete { ids, reason } => delete(ids, &reason, fmt),
         RequestCommands::Diff { file } => diff(file.as_deref(), fmt),
         RequestCommands::Discard { force } => {
             request_builder_cmd::handle_builder(BuilderCommands::Discard { force })
@@ -220,6 +230,52 @@ fn validate(file: Option<&Path>, fmt: &str) -> BoxResult {
         std::process::exit(1);
     }
     println!("  validate: clean ({} warning(s))", findings.len());
+    Ok(())
+}
+
+/// FT-064 — `product request delete <ID...> --reason "..."` is a convenience
+/// wrapper that builds a `type: delete` YAML request in memory and runs it
+/// through the same parse / validate / apply pipeline as `product request
+/// apply`. The deletion lands in `requests.jsonl` exactly as if the user had
+/// written the YAML by hand.
+fn delete(ids: Vec<String>, reason: &str, fmt: &str) -> BoxResult {
+    use product_lib::request::{apply_request, parse_request_str};
+    let (config, root) = ProductConfig::discover()?;
+    let _lock = fileops::RepoLock::acquire(&root)?;
+
+    let escaped_reason = reason.replace('\\', "\\\\").replace('"', "\\\"");
+    let mut yaml = format!(
+        "type: delete\nschema-version: 1\nreason: \"{}\"\ndeletions:\n",
+        escaped_reason
+    );
+    for id in &ids {
+        yaml.push_str(&format!("  - target: {}\n", id));
+    }
+
+    let request = match parse_request_str(&yaml) {
+        Ok(r) => r,
+        Err(findings) => {
+            print_findings(&findings, fmt);
+            std::process::exit(1);
+        }
+    };
+
+    let result = apply_request(&request, &config, &root, ApplyOptions::default());
+
+    if fmt == "json" {
+        print_json_result(&result);
+        if !result.applied {
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
+
+    print_findings(&result.findings, fmt);
+    if !result.applied {
+        std::process::exit(1);
+    }
+
+    print_apply_summary(&result);
     Ok(())
 }
 

@@ -19,6 +19,10 @@ pub struct Request {
     pub reason: String,
     pub artifacts: Vec<ArtifactSpec>,
     pub changes: Vec<ChangeSpec>,
+    /// FT-064 — artifact files to remove. Populated only for
+    /// `type: delete` (or `type: create-and-change` carrying a
+    /// `deletions:` section, future scope).
+    pub deletions: Vec<DeletionSpec>,
     /// Raw YAML source for hashing (request-log.jsonl)
     pub source_yaml: String,
 }
@@ -29,6 +33,7 @@ pub enum RequestType {
     Create,
     Change,
     CreateAndChange,
+    Delete,
 }
 
 impl std::fmt::Display for RequestType {
@@ -37,6 +42,7 @@ impl std::fmt::Display for RequestType {
             Self::Create => write!(f, "create"),
             Self::Change => write!(f, "change"),
             Self::CreateAndChange => write!(f, "create-and-change"),
+            Self::Delete => write!(f, "delete"),
         }
     }
 }
@@ -91,6 +97,14 @@ pub struct ChangeSpec {
     pub index: usize,
     pub target: String,
     pub mutations: Vec<Mutation>,
+}
+
+/// A deletion target (FT-064). Carries only the artifact ID; the apply
+/// pipeline looks the artifact up in the graph and unlinks its file.
+#[derive(Debug, Clone)]
+pub struct DeletionSpec {
+    pub index: usize,
+    pub target: String,
 }
 
 #[derive(Debug, Clone)]

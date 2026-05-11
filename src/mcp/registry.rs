@@ -182,9 +182,10 @@ fn dispatch_tool(
         "product_adr_supersede" => field_handlers::handle_adr_supersede(args, graph),
         "product_adr_source_files" => field_handlers::handle_adr_source_files(args, graph, repo_root),
         "product_test_runner" => field_handlers::handle_test_runner(args, graph, repo_root),
-        // Request tools (FT-041, ADR-038)
+        // Request tools (FT-041, ADR-038, FT-064)
         "product_request_validate" => super::request_handlers::handle_request_validate(args, repo_root),
         "product_request_apply" => super::request_handlers::handle_request_apply(args, repo_root),
+        "product_request_delete" => super::request_handlers::handle_request_delete(args, repo_root),
         _ => Err(format!("Tool handler not implemented: {}", name)),
     }
 }

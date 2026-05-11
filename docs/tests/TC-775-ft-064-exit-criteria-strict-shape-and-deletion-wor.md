@@ -2,12 +2,16 @@
 id: TC-775
 title: FT-064 exit criteria — strict shape and deletion work end-to-end
 type: exit-criteria
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-064
   adrs: []
 phase: 5
+runner: cargo-test
+runner-args: "tc_775_ft064_exit_criteria_strict_shape_and_deletion_work_end_to_end"
+last-run: 2026-05-11T09:30:05.870828163+00:00
+last-run-duration: 0.2s
 ---
 
 Consolidated exit-criteria check for FT-064. The feature is done

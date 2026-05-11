@@ -248,32 +248,62 @@ fn adr_lifecycle_tools() -> Vec<ToolDef> {
     ]
 }
 
-// Request tools (FT-041, ADR-038)
+// Request tools (FT-041, ADR-038, FT-064)
 fn request_tools() -> Vec<ToolDef> {
     vec![
-        ToolDef {
-            name: "product_request_validate".to_string(),
-            description: "Validate a request YAML (type: create | change | create-and-change) without writing. Returns every finding in one pass.".to_string(),
-            requires_write: false,
-            input_schema: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "request_yaml": {"type": "string", "description": "Full YAML source of the request"}
-                },
-                "required": ["request_yaml"]
-            }),
-        },
-        ToolDef {
-            name: "product_request_apply".to_string(),
-            description: "Validate a request YAML and apply it atomically. Returns created and changed arrays with assigned IDs.".to_string(),
-            requires_write: true,
-            input_schema: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "request_yaml": {"type": "string", "description": "Full YAML source of the request"}
-                },
-                "required": ["request_yaml"]
-            }),
-        },
+        request_validate_tool(),
+        request_apply_tool(),
+        request_delete_tool(),
     ]
+}
+
+fn request_validate_tool() -> ToolDef {
+    ToolDef {
+        name: "product_request_validate".to_string(),
+        description: "Validate a request YAML (type: create | change | create-and-change | delete) without writing. Returns every finding in one pass.".to_string(),
+        requires_write: false,
+        input_schema: serde_json::json!({
+            "type": "object",
+            "properties": {
+                "request_yaml": {"type": "string", "description": "Full YAML source of the request"}
+            },
+            "required": ["request_yaml"]
+        }),
+    }
+}
+
+fn request_apply_tool() -> ToolDef {
+    ToolDef {
+        name: "product_request_apply".to_string(),
+        description: "Validate a request YAML and apply it atomically. Returns created, changed, and deleted arrays with assigned IDs.".to_string(),
+        requires_write: true,
+        input_schema: serde_json::json!({
+            "type": "object",
+            "properties": {
+                "request_yaml": {"type": "string", "description": "Full YAML source of the request"}
+            },
+            "required": ["request_yaml"]
+        }),
+    }
+}
+
+/// FT-064 — artifact deletion via the request interface.
+fn request_delete_tool() -> ToolDef {
+    ToolDef {
+        name: "product_request_delete".to_string(),
+        description: "Atomically delete one or more artifact files (feature, ADR, TC, dep). Refuses to orphan live inbound links. Records the deletion in requests.jsonl with the hash-chain (FT-064).".to_string(),
+        requires_write: true,
+        input_schema: serde_json::json!({
+            "type": "object",
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Artifact IDs to delete (FT-XXX / ADR-XXX / TC-XXX / DEP-XXX)"
+                },
+                "reason": {"type": "string", "description": "Why this deletion is being made (recorded in requests.jsonl)"}
+            },
+            "required": ["ids", "reason"]
+        }),
+    }
 }

@@ -16045,6 +16045,7 @@ fn tc_624_request_log_migrate_paths_rewrites_history() {
                 format!("{}docs/features/{}", legacy_prefix, suffix),
             )],
             changed: Vec::new(),
+            deleted: Vec::new(),
         },
     };
 

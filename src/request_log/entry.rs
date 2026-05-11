@@ -1,6 +1,12 @@
-//! Entry schema for `requests.jsonl` (FT-042, ADR-039, FT-051).
+//! Entry schema for `requests.jsonl` (FT-042, ADR-039, FT-051, FT-064).
+//!
+//! `EntryType` enumerates the eight entry kinds (FT-064 added `delete` to
+//! the original seven). `EntryPayload` carries type-specific fields. The
+//! canonical-JSON merge / parse helpers live in `entry_payload.rs` to keep
+//! this file under the 400-line fitness limit.
 
-use serde_json::{json, Map, Value};
+use super::entry_payload;
+use serde_json::{Map, Value};
 
 /// Sentinel — log-path migration from `.product/request-log.jsonl`.
 pub const MIGRATE_LOG_SENTINEL: &str = "log-path";
@@ -8,12 +14,13 @@ pub const MIGRATE_LOG_SENTINEL: &str = "log-path";
 /// Sentinel — `product migrate consolidate` (FT-057, ADR-048).
 pub const MIGRATE_LOG_SENTINEL_CONSOLIDATE: &str = "consolidate-paths";
 
-/// Seven entry types per ADR-039 decision 4.
+/// Entry types per ADR-039 decision 4, extended by FT-064 with `delete`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EntryType {
     Create,
     Change,
     CreateAndChange,
+    Delete,
     Undo,
     Migrate,
     SchemaUpgrade,
@@ -26,6 +33,7 @@ impl EntryType {
             Self::Create => "create",
             Self::Change => "change",
             Self::CreateAndChange => "create-and-change",
+            Self::Delete => "delete",
             Self::Undo => "undo",
             Self::Migrate => "migrate",
             Self::SchemaUpgrade => "schema-upgrade",
@@ -38,6 +46,7 @@ impl EntryType {
             "create" => Some(Self::Create),
             "change" => Some(Self::Change),
             "create-and-change" => Some(Self::CreateAndChange),
+            "delete" => Some(Self::Delete),
             "undo" => Some(Self::Undo),
             "migrate" => Some(Self::Migrate),
             "schema-upgrade" => Some(Self::SchemaUpgrade),
@@ -62,7 +71,7 @@ impl ArtifactRef {
     pub fn new(id: impl Into<String>, file: impl Into<String>) -> Self {
         ArtifactRef { id: id.into(), file: Some(file.into()) }
     }
-    fn to_value(&self) -> Value {
+    pub(super) fn to_value(&self) -> Value {
         match &self.file {
             Some(f) => {
                 let mut m = Map::new();
@@ -73,7 +82,7 @@ impl ArtifactRef {
             None => Value::String(self.id.clone()),
         }
     }
-    fn parse_value(v: &Value) -> Option<Self> {
+    pub(super) fn parse_value(v: &Value) -> Option<Self> {
         if let Some(s) = v.as_str() {
             return Some(ArtifactRef::id_only(s));
         }
@@ -87,7 +96,7 @@ impl ArtifactRef {
 /// Type-specific payload carried by an Entry (ADR-039 decision 4).
 #[derive(Debug, Clone)]
 pub enum EntryPayload {
-    /// `create` / `change` / `create-and-change`
+    /// `create` / `change` / `create-and-change` / `delete`
     Apply {
         /// Full request source (as JSON) — optional, may be a summary
         request: Value,
@@ -95,6 +104,8 @@ pub enum EntryPayload {
         created: Vec<ArtifactRef>,
         /// `result.changed` — list of changed artifact refs (id + optional file)
         changed: Vec<ArtifactRef>,
+        /// `result.deleted` — list of deleted artifact refs (FT-064).
+        deleted: Vec<ArtifactRef>,
     },
     Undo {
         undoes: String,
@@ -128,78 +139,6 @@ impl EntryPayload {
             Self::Verify { .. } => EntryType::Verify,
         }
     }
-
-    fn merge_into(&self, map: &mut Map<String, Value>) {
-        match self {
-            Self::Apply { request, created, changed } => merge_apply(map, request, created, changed),
-            Self::Undo { undoes, inverse_request } => merge_undo(map, undoes, inverse_request),
-            Self::Migrate { sources, created } => merge_migrate(map, sources, created),
-            Self::SchemaUpgrade { from_version, to_version, changes } => {
-                map.insert("from-version".into(), json!(from_version));
-                map.insert("to-version".into(), json!(to_version));
-                map.insert("changes".into(), Value::String(changes.clone()));
-            }
-            Self::Verify { feature, tcs_run, passing, failing, tag_created } => {
-                merge_verify(map, feature, tcs_run, passing, failing, tag_created);
-            }
-        }
-    }
-}
-
-fn str_array(items: &[String]) -> Value {
-    Value::Array(items.iter().map(|s| Value::String(s.clone())).collect())
-}
-
-fn ref_array(items: &[ArtifactRef]) -> Value {
-    Value::Array(items.iter().map(|r| r.to_value()).collect())
-}
-
-fn merge_apply(
-    map: &mut Map<String, Value>,
-    request: &Value,
-    created: &[ArtifactRef],
-    changed: &[ArtifactRef],
-) {
-    if !request.is_null() {
-        map.insert("request".into(), request.clone());
-    }
-    let mut result = Map::new();
-    result.insert("created".into(), ref_array(created));
-    result.insert("changed".into(), ref_array(changed));
-    map.insert("result".into(), Value::Object(result));
-}
-
-fn merge_undo(map: &mut Map<String, Value>, undoes: &str, inverse: &Value) {
-    map.insert("undoes".into(), Value::String(undoes.into()));
-    map.insert("inverse-request".into(), inverse.clone());
-}
-
-fn merge_migrate(map: &mut Map<String, Value>, sources: &[String], created: &[String]) {
-    map.insert("sources".into(), str_array(sources));
-    let mut result = Map::new();
-    result.insert("created".into(), str_array(created));
-    map.insert("result".into(), Value::Object(result));
-}
-
-fn merge_verify(
-    map: &mut Map<String, Value>,
-    feature: &str,
-    tcs_run: &[String],
-    passing: &[String],
-    failing: &[String],
-    tag_created: &Option<String>,
-) {
-    map.insert("feature".into(), Value::String(feature.into()));
-    let mut result = Map::new();
-    result.insert("tcs-run".into(), str_array(tcs_run));
-    result.insert("passing".into(), str_array(passing));
-    result.insert("failing".into(), str_array(failing));
-    let tag = match tag_created {
-        Some(t) => Value::String(t.clone()),
-        None => Value::Null,
-    };
-    result.insert("tag-created".into(), tag);
-    map.insert("result".into(), Value::Object(result));
 }
 
 /// One log entry.
@@ -229,7 +168,7 @@ impl Entry {
         map.insert("reason".into(), Value::String(self.reason.clone()));
         map.insert("prev-hash".into(), Value::String(self.prev_hash.clone()));
         map.insert("entry-hash".into(), Value::String(self.entry_hash.clone()));
-        self.payload.merge_into(&mut map);
+        entry_payload::merge_payload(&self.payload, &mut map);
         Value::Object(map)
     }
 
@@ -254,8 +193,6 @@ impl Entry {
     }
 
     /// Parse a single line of `requests.jsonl` into an Entry.
-    /// Returns a tuple of the parsed Entry (best-effort) and the stored
-    /// canonical JSON `Value` so callers can introspect unknown fields.
     pub fn parse_line(line: &str) -> Result<(Entry, Value), String> {
         let value: Value = serde_json::from_str(line)
             .map_err(|e| format!("malformed JSON: {}", e))?;
@@ -265,81 +202,19 @@ impl Entry {
         let entry_type_str = obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
         let entry_type = EntryType::parse(entry_type_str)
             .ok_or_else(|| format!("unknown entry type '{}'", entry_type_str))?;
-        let payload = parse_payload(obj, entry_type);
+        let payload = entry_payload::parse_payload(obj, entry_type);
         let entry = Entry {
-            id: str_field(obj, "id"),
-            applied_at: str_field(obj, "applied-at"),
-            applied_by: str_field(obj, "applied-by"),
-            commit: str_field(obj, "commit"),
+            id: entry_payload::str_field(obj, "id"),
+            applied_at: entry_payload::str_field(obj, "applied-at"),
+            applied_by: entry_payload::str_field(obj, "applied-by"),
+            commit: entry_payload::str_field(obj, "commit"),
             entry_type,
-            reason: str_field(obj, "reason"),
-            prev_hash: str_field(obj, "prev-hash"),
-            entry_hash: str_field(obj, "entry-hash"),
+            reason: entry_payload::str_field(obj, "reason"),
+            prev_hash: entry_payload::str_field(obj, "prev-hash"),
+            entry_hash: entry_payload::str_field(obj, "entry-hash"),
             payload,
         };
         Ok((entry, value))
-    }
-}
-
-fn str_field(obj: &Map<String, Value>, key: &str) -> String {
-    obj.get(key).and_then(|v| v.as_str()).unwrap_or("").to_string()
-}
-
-fn str_array_field(obj: &Map<String, Value>, key: &str) -> Vec<String> {
-    obj.get(key)
-        .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
-        .unwrap_or_default()
-}
-
-fn result_array(obj: &Map<String, Value>, key: &str) -> Vec<String> {
-    obj.get("result")
-        .and_then(|v| v.as_object())
-        .map(|r| str_array_field(r, key))
-        .unwrap_or_default()
-}
-
-fn result_ref_array(obj: &Map<String, Value>, key: &str) -> Vec<ArtifactRef> {
-    obj.get("result")
-        .and_then(|v| v.as_object())
-        .and_then(|r| r.get(key))
-        .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(ArtifactRef::parse_value).collect())
-        .unwrap_or_default()
-}
-
-fn parse_payload(obj: &Map<String, Value>, entry_type: EntryType) -> EntryPayload {
-    match entry_type {
-        EntryType::Create | EntryType::Change | EntryType::CreateAndChange => EntryPayload::Apply {
-            request: obj.get("request").cloned().unwrap_or(Value::Null),
-            created: result_ref_array(obj, "created"),
-            changed: result_ref_array(obj, "changed"),
-        },
-        EntryType::Undo => EntryPayload::Undo {
-            undoes: str_field(obj, "undoes"),
-            inverse_request: obj.get("inverse-request").cloned().unwrap_or(Value::Null),
-        },
-        EntryType::Migrate => EntryPayload::Migrate {
-            sources: str_array_field(obj, "sources"),
-            created: result_array(obj, "created"),
-        },
-        EntryType::SchemaUpgrade => EntryPayload::SchemaUpgrade {
-            from_version: obj.get("from-version").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-            to_version: obj.get("to-version").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-            changes: str_field(obj, "changes"),
-        },
-        EntryType::Verify => EntryPayload::Verify {
-            feature: str_field(obj, "feature"),
-            tcs_run: result_array(obj, "tcs-run"),
-            passing: result_array(obj, "passing"),
-            failing: result_array(obj, "failing"),
-            tag_created: obj
-                .get("result")
-                .and_then(|v| v.as_object())
-                .and_then(|r| r.get("tag-created"))
-                .and_then(|v| v.as_str())
-                .map(String::from),
-        },
     }
 }
 
@@ -361,6 +236,7 @@ mod tests {
                 request: serde_json::Value::Null,
                 created: vec![ArtifactRef::id_only("FT-001")],
                 changed: vec![],
+                deleted: vec![],
             },
         }
     }
@@ -377,9 +253,8 @@ mod tests {
         let b = sample_entry();
         let ha = a.compute_hash();
         a.reason = "different".into();
-        let hb = a.compute_hash();
-        assert_ne!(ha, hb);
-        // original still matches sibling
+        let _hb = a.compute_hash();
+        assert_ne!(a.compute_hash(), ha);
         assert_eq!(b.compute_hash(), ha);
     }
 

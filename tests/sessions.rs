@@ -153,3 +153,7 @@ mod st_761_mcp_canonical_layout;
 // FT-062 — MCP parity for feature `depends-on` and strict request shape validation
 #[path = "sessions/ft_062_depends_on_and_strict_validation.rs"]
 mod ft_062_depends_on_and_strict_validation;
+
+// FT-064 — strict change-spec validation and artifact deletion surface
+#[path = "sessions/ft_064_strict_change_spec_and_deletion.rs"]
+mod ft_064_strict_change_spec_and_deletion;

@@ -131,6 +131,7 @@ fn empty_result(findings: Vec<Finding>) -> ApplyResult {
         applied: false,
         created: Vec::new(),
         changed: Vec::new(),
+        deleted: Vec::new(),
         findings,
         graph_check_clean: false,
         started_tags: Vec::new(),

@@ -1,5 +1,11 @@
-//! Parse a request YAML document into `Request` (FT-041, ADR-038).
+//! Parse a request YAML document into `Request` (FT-041, ADR-038, FT-064).
+//!
+//! Top-level orchestration. Section parsers live in sibling modules:
+//! `parse_artifacts`, `parse_changes`, `parse_deletions`.
 
+use super::parse_artifacts::parse_artifacts_array;
+use super::parse_changes::parse_changes_array;
+use super::parse_deletions::parse_deletions_array;
 use super::types::*;
 use serde_yaml::{Mapping, Value};
 use std::path::Path;
@@ -16,13 +22,14 @@ pub fn parse_request(path: &Path) -> Result<Request, Vec<Finding>> {
 }
 
 /// Closed set of recognised top-level request keys. Any other key surfaces
-/// as **E025 unknown-request-key** (FT-062).
+/// as **E025 unknown-request-key** (FT-062, FT-064).
 const KNOWN_TOP_LEVEL_KEYS: &[&str] = &[
     "type",
     "schema-version",
     "reason",
     "artifacts",
     "changes",
+    "deletions",
 ];
 
 pub fn parse_request_str(yaml: &str) -> Result<Request, Vec<Finding>> {
@@ -31,14 +38,13 @@ pub fn parse_request_str(yaml: &str) -> Result<Request, Vec<Finding>> {
     let map = doc.as_mapping().ok_or_else(|| {
         vec![Finding::error("E001", "request document must be a YAML mapping", "$")]
     })?;
-    // FT-062 — closed-set top-level key validation. Surface every offender
-    // in one pass so the caller doesn't ping-pong.
     let mut unknown = check_unknown_top_level_keys(map);
     let request_type = combine(&mut unknown, parse_type(map))?;
     let schema_version = combine(&mut unknown, parse_schema_version(map))?;
     let reason = parse_reason(map);
     let artifacts = combine(&mut unknown, parse_artifacts_array(map))?;
     let changes = combine(&mut unknown, parse_changes_array(map))?;
+    let deletions = combine(&mut unknown, parse_deletions_array(map))?;
     if !unknown.is_empty() {
         return Err(unknown);
     }
@@ -48,6 +54,7 @@ pub fn parse_request_str(yaml: &str) -> Result<Request, Vec<Finding>> {
         reason,
         artifacts,
         changes,
+        deletions,
         source_yaml: yaml.to_string(),
     })
 }
@@ -95,10 +102,11 @@ fn parse_type(map: &Mapping) -> Result<RequestType, Vec<Finding>> {
         Some("create") => Ok(RequestType::Create),
         Some("change") => Ok(RequestType::Change),
         Some("create-and-change") => Ok(RequestType::CreateAndChange),
+        Some("delete") => Ok(RequestType::Delete),
         Some(other) => Err(vec![Finding::error(
             "E001",
             format!(
-                "unknown request type '{}' — expected one of: create, change, create-and-change",
+                "unknown request type '{}' — expected one of: create, change, create-and-change, delete",
                 other
             ),
             "$.type",
@@ -153,185 +161,5 @@ fn parse_reason(map: &Mapping) -> String {
     match map.get(Value::String("reason".into())) {
         Some(Value::String(s)) => s.clone(),
         _ => String::new(),
-    }
-}
-
-fn parse_artifacts_array(map: &Mapping) -> Result<Vec<ArtifactSpec>, Vec<Finding>> {
-    let mut artifacts = Vec::new();
-    if let Some(Value::Sequence(seq)) = map.get(Value::String("artifacts".into())) {
-        for (i, item) in seq.iter().enumerate() {
-            artifacts.push(parse_artifact(item, i)?);
-        }
-    }
-    Ok(artifacts)
-}
-
-fn parse_changes_array(map: &Mapping) -> Result<Vec<ChangeSpec>, Vec<Finding>> {
-    let mut changes = Vec::new();
-    if let Some(Value::Sequence(seq)) = map.get(Value::String("changes".into())) {
-        for (i, item) in seq.iter().enumerate() {
-            changes.push(parse_change(item, i)?);
-        }
-    }
-    Ok(changes)
-}
-
-fn parse_artifact(item: &Value, index: usize) -> Result<ArtifactSpec, Vec<Finding>> {
-    let map = item.as_mapping().cloned().ok_or_else(|| {
-        vec![Finding::error(
-            "E001",
-            "artifact must be a YAML mapping",
-            format!("$.artifacts[{}]", index),
-        )]
-    })?;
-
-    let artifact_type = parse_artifact_type(&map, index)?;
-    let ref_name = parse_ref_name(&map, index)?;
-
-    let mut fields = Mapping::new();
-    for (k, v) in map.iter() {
-        if let Some(s) = k.as_str() {
-            if s == "type" || s == "ref" {
-                continue;
-            }
-        }
-        fields.insert(k.clone(), v.clone());
-    }
-
-    Ok(ArtifactSpec { index, artifact_type, ref_name, fields })
-}
-
-fn parse_artifact_type(map: &Mapping, index: usize) -> Result<ArtifactType, Vec<Finding>> {
-    let type_str = match map.get(Value::String("type".into())) {
-        Some(Value::String(s)) => s.clone(),
-        _ => {
-            return Err(vec![Finding::error(
-                "E001",
-                "artifact missing required field 'type'",
-                format!("$.artifacts[{}].type", index),
-            )])
-        }
-    };
-    ArtifactType::parse(&type_str).ok_or_else(|| {
-        vec![Finding::error(
-            "E001",
-            format!(
-                "unknown artifact type '{}' — expected one of: feature, adr, tc, dep",
-                type_str
-            ),
-            format!("$.artifacts[{}].type", index),
-        )]
-    })
-}
-
-fn parse_ref_name(map: &Mapping, index: usize) -> Result<Option<String>, Vec<Finding>> {
-    match map.get(Value::String("ref".into())) {
-        Some(Value::String(s)) => Ok(Some(s.clone())),
-        None => Ok(None),
-        _ => Err(vec![Finding::error(
-            "E001",
-            "ref must be a string",
-            format!("$.artifacts[{}].ref", index),
-        )]),
-    }
-}
-
-fn parse_change(item: &Value, index: usize) -> Result<ChangeSpec, Vec<Finding>> {
-    let map = item.as_mapping().ok_or_else(|| {
-        vec![Finding::error(
-            "E001",
-            "change must be a YAML mapping",
-            format!("$.changes[{}]", index),
-        )]
-    })?;
-
-    let target = match map.get(Value::String("target".into())) {
-        Some(Value::String(s)) => s.clone(),
-        _ => {
-            return Err(vec![Finding::error(
-                "E001",
-                "change missing required field 'target'",
-                format!("$.changes[{}].target", index),
-            )])
-        }
-    };
-
-    let mutations = parse_mutations(map, index)?;
-    Ok(ChangeSpec { index, target, mutations })
-}
-
-fn parse_mutations(map: &Mapping, index: usize) -> Result<Vec<Mutation>, Vec<Finding>> {
-    match map.get(Value::String("mutations".into())) {
-        Some(Value::Sequence(seq)) => {
-            let mut out = Vec::new();
-            for (mi, m) in seq.iter().enumerate() {
-                out.push(parse_mutation(m, index, mi)?);
-            }
-            Ok(out)
-        }
-        Some(_) => Err(vec![Finding::error(
-            "E001",
-            "mutations must be a sequence",
-            format!("$.changes[{}].mutations", index),
-        )]),
-        None => Ok(Vec::new()),
-    }
-}
-
-fn parse_mutation(m: &Value, change_idx: usize, idx: usize) -> Result<Mutation, Vec<Finding>> {
-    let map = m.as_mapping().ok_or_else(|| {
-        vec![Finding::error(
-            "E001",
-            "mutation must be a YAML mapping",
-            format!("$.changes[{}].mutations[{}]", change_idx, idx),
-        )]
-    })?;
-
-    let op = parse_mutation_op(map, change_idx, idx)?;
-    let field = parse_mutation_field(map, change_idx, idx)?;
-    let value = map.get(Value::String("value".into())).cloned();
-
-    Ok(Mutation { index: idx, op, field, value })
-}
-
-fn parse_mutation_op(
-    map: &Mapping,
-    change_idx: usize,
-    idx: usize,
-) -> Result<MutationOp, Vec<Finding>> {
-    let op_str = match map.get(Value::String("op".into())) {
-        Some(Value::String(s)) => s.clone(),
-        _ => {
-            return Err(vec![Finding::error(
-                "E001",
-                "mutation missing required field 'op'",
-                format!("$.changes[{}].mutations[{}].op", change_idx, idx),
-            )])
-        }
-    };
-    MutationOp::parse(&op_str).ok_or_else(|| {
-        vec![Finding::error(
-            "E001",
-            format!(
-                "unknown mutation op '{}' — expected one of: set, append, remove, delete",
-                op_str
-            ),
-            format!("$.changes[{}].mutations[{}].op", change_idx, idx),
-        )]
-    })
-}
-
-fn parse_mutation_field(
-    map: &Mapping,
-    change_idx: usize,
-    idx: usize,
-) -> Result<String, Vec<Finding>> {
-    match map.get(Value::String("field".into())) {
-        Some(Value::String(s)) => Ok(s.clone()),
-        _ => Err(vec![Finding::error(
-            "E001",
-            "mutation missing required field 'field'",
-            format!("$.changes[{}].mutations[{}].field", change_idx, idx),
-        )]),
     }
 }

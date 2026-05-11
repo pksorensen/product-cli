@@ -2,12 +2,16 @@
 id: TC-773
 title: request op:remove on list-valued field removes the entry
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-064
   adrs: []
 phase: 5
+runner: cargo-test
+runner-args: "tc_773_request_op_remove_on_list_valued_field_removes_the_entry"
+last-run: 2026-05-11T09:30:05.870828163+00:00
+last-run-duration: 0.2s
 ---
 
 Regression cover for the headline symptom. Given a feature

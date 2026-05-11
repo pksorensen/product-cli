@@ -2,7 +2,7 @@
 id: FT-064
 title: Strict Change-Spec Validation and Artifact Deletion Surface
 phase: 5
-status: planned
+status: complete
 depends-on:
 - FT-041
 - FT-062
@@ -19,11 +19,11 @@ tests:
 - TC-775
 domains: []
 domains-acknowledged:
-  ADR-040: No verify-pipeline change and no LLM calls introduced. Strict-shape rejections (E025-class) and the new deletion request type surface through the existing request validate/apply path; stage 2 graph check picks up post-apply state unchanged. ADR-040's six-stage pipeline and zero-LLM boundary are unaffected.
+  ADR-041: ADR-041 governs negative assertions about code/dependency presence via absence TCs and ADR `removes`/`deprecates` fields. FT-064 deletes spec-layer artifact files via the request interface — an orthogonal mechanism that records audit entries in requests.jsonl and does not interact with the absence-TC machinery. No `removes` or `deprecates` declarations and no absence TCs are required.
   ADR-049: No context-bundle rendering changes. FT-064 touches the request write surface only; bundle assembly, template resolution, and `--target` routing are untouched. Deleted artifacts naturally drop out of subsequent bundles because the graph rebuilds from disk on every invocation (ADR-003).
   ADR-042: All TCs in this feature use the existing `scenario` descriptive type (and `exit-criteria` for TC-775). No new structural types are introduced and no custom descriptive types are added to product.toml; ADR-042's reserved/open partition is unaffected.
+  ADR-040: No verify-pipeline change and no LLM calls introduced. Strict-shape rejections (E025-class) and the new deletion request type surface through the existing request validate/apply path; stage 2 graph check picks up post-apply state unchanged. ADR-040's six-stage pipeline and zero-LLM boundary are unaffected.
   ADR-048: No file-layout changes. Strict-shape validation lives in the existing request parser/validator paths; the new deletion operation writes to the same configured artifact directories and the same `requests.jsonl` location that ADR-048 canonicalises under `.product/`. No hardcoded paths are introduced.
-  ADR-041: ADR-041 governs negative assertions about code/dependency presence via absence TCs and ADR `removes`/`deprecates` fields. FT-064 deletes spec-layer artifact files via the request interface — an orthogonal mechanism that records audit entries in requests.jsonl and does not interact with the absence-TC machinery. No `removes` or `deprecates` declarations and no absence TCs are required.
 ---
 
 ## Description

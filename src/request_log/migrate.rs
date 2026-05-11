@@ -76,6 +76,7 @@ fn build_entry_from_legacy(line: &str, prev_hash: &str, new_path: &Path) -> Opti
             request: serde_json::Value::Null,
             created,
             changed,
+            deleted: Vec::new(),
         },
     })
 }

@@ -2,12 +2,16 @@
 id: TC-771
 title: request rejects change with empty mutations list
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-064
   adrs: []
 phase: 5
+runner: cargo-test
+runner-args: "tc_771_request_rejects_change_with_empty_mutations_list"
+last-run: 2026-05-11T09:30:05.870828163+00:00
+last-run-duration: 0.2s
 ---
 
 A change with `mutations: []` (or no `mutations:` key at all) is

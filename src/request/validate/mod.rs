@@ -28,10 +28,112 @@ pub fn validate_request(request: &Request, ctx: &ValidationContext<'_>) -> Vec<F
     for c in &request.changes {
         changes::validate_change(c, &refs, ctx, &mut findings);
     }
+    // FT-064 — deletion targets must exist and must have no inbound links
+    // (cascade is out of scope for this feature).
+    for d in &request.deletions {
+        validate_deletion(d, ctx, &mut findings);
+    }
     // FT-058 / E022: any change that promotes a feature into a status
     // requiring runner config must carry it for every linked TC.
     check_tc_runner_required_on_status_change(request, ctx, &mut findings);
     findings
+}
+
+/// FT-064 — validate a `deletions[]` entry. Two checks:
+///   1. `E002` if the target ID does not exist in the graph.
+///   2. `E027` if other artifacts link to the target (refuses orphaning).
+fn validate_deletion(
+    d: &DeletionSpec,
+    ctx: &ValidationContext<'_>,
+    findings: &mut Vec<Finding>,
+) {
+    if d.target.trim().is_empty() {
+        findings.push(Finding::error(
+            "E001",
+            "deletion target must not be empty",
+            format!("$.deletions[{}].target", d.index),
+        ));
+        return;
+    }
+    if !ctx.graph.all_ids().contains(&d.target) {
+        findings.push(Finding::error(
+            "E002",
+            format!("deletion target '{}' does not exist in the graph", d.target),
+            format!("$.deletions[{}].target", d.index),
+        ));
+        return;
+    }
+    let referrers = find_referrers(ctx.graph, &d.target);
+    if !referrers.is_empty() {
+        let mut shown = referrers.clone();
+        shown.sort();
+        shown.dedup();
+        let summary = if shown.len() > 8 {
+            format!("{} (and {} more)", shown[..8].join(", "), shown.len() - 8)
+        } else {
+            shown.join(", ")
+        };
+        findings.push(
+            Finding::error(
+                "E027",
+                format!(
+                    "cannot delete '{}' — {} other artifact(s) still link to it: {}",
+                    d.target,
+                    shown.len(),
+                    summary
+                ),
+                format!("$.deletions[{}].target", d.index),
+            )
+            .with_hint(
+                "remove the inbound links first (e.g. `op: remove` on each \
+                 referrer's list) or open a separate request that supersedes \
+                 the link",
+            ),
+        );
+    }
+}
+
+/// Return every artifact ID that has an outgoing link to `target` in the graph.
+/// Used by `validate_deletion` to refuse silently orphaning live references.
+fn find_referrers(
+    graph: &crate::graph::KnowledgeGraph,
+    target: &str,
+) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for (id, f) in &graph.features {
+        if f.front.adrs.iter().any(|x| x == target)
+            || f.front.tests.iter().any(|x| x == target)
+            || f.front.depends_on.iter().any(|x| x == target)
+        {
+            out.push(id.clone());
+        }
+    }
+    for (id, a) in &graph.adrs {
+        if a.front.features.iter().any(|x| x == target)
+            || a.front.supersedes.iter().any(|x| x == target)
+            || a.front.superseded_by.iter().any(|x| x == target)
+        {
+            out.push(id.clone());
+        }
+    }
+    for (id, t) in &graph.tests {
+        if t.front.validates.features.iter().any(|x| x == target)
+            || t.front.validates.adrs.iter().any(|x| x == target)
+        {
+            out.push(id.clone());
+        }
+    }
+    for (id, d) in &graph.dependencies {
+        if d.front.adrs.iter().any(|x| x == target)
+            || d.front.features.iter().any(|x| x == target)
+            || d.front.supersedes.iter().any(|x| x == target)
+        {
+            out.push(id.clone());
+        }
+    }
+    out.sort();
+    out.dedup();
+    out
 }
 
 /// FT-058 / E022 — refuse a `set status: in-progress|complete` mutation
@@ -105,6 +207,9 @@ fn check_section_coherence(request: &Request, findings: &mut Vec<Finding>) {
             if !request.changes.is_empty() {
                 findings.push(Finding::error("E006", "'type: create' must not contain a 'changes' section", "$.changes"));
             }
+            if !request.deletions.is_empty() {
+                findings.push(Finding::error("E006", "'type: create' must not contain a 'deletions' section", "$.deletions"));
+            }
         }
         RequestType::Change => {
             if request.changes.is_empty() {
@@ -112,6 +217,9 @@ fn check_section_coherence(request: &Request, findings: &mut Vec<Finding>) {
             }
             if !request.artifacts.is_empty() {
                 findings.push(Finding::error("E006", "'type: change' must not contain an 'artifacts' section", "$.artifacts"));
+            }
+            if !request.deletions.is_empty() {
+                findings.push(Finding::error("E006", "'type: change' must not contain a 'deletions' section", "$.deletions"));
             }
         }
         RequestType::CreateAndChange => {
@@ -121,6 +229,24 @@ fn check_section_coherence(request: &Request, findings: &mut Vec<Finding>) {
                     "'type: create-and-change' requires at least one artifact or change",
                     "$",
                 ));
+            }
+            if !request.deletions.is_empty() {
+                findings.push(Finding::error("E006", "'type: create-and-change' must not contain a 'deletions' section", "$.deletions"));
+            }
+        }
+        RequestType::Delete => {
+            if request.deletions.is_empty() {
+                findings.push(Finding::error(
+                    "E006",
+                    "'type: delete' requires at least one entry in 'deletions'",
+                    "$.deletions",
+                ));
+            }
+            if !request.artifacts.is_empty() {
+                findings.push(Finding::error("E006", "'type: delete' must not contain an 'artifacts' section", "$.artifacts"));
+            }
+            if !request.changes.is_empty() {
+                findings.push(Finding::error("E006", "'type: delete' must not contain a 'changes' section", "$.changes"));
             }
         }
     }

@@ -9,6 +9,9 @@ pub mod apply;
 pub mod builder;
 pub mod log;
 pub mod parse;
+pub mod parse_artifacts;
+pub mod parse_changes;
+pub mod parse_deletions;
 pub mod types;
 pub mod validate;
 

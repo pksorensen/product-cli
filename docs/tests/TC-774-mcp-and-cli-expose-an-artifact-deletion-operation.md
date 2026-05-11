@@ -2,12 +2,16 @@
 id: TC-774
 title: MCP and CLI expose an artifact-deletion operation
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-064
   adrs: []
 phase: 5
+runner: cargo-test
+runner-args: "tc_774_mcp_and_cli_expose_an_artifact_deletion_operation"
+last-run: 2026-05-11T09:30:05.870828163+00:00
+last-run-duration: 0.2s
 ---
 
 The MCP write surface and the CLI both expose an operation that

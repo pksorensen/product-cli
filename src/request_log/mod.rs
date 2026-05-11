@@ -15,6 +15,7 @@
 
 pub mod canonical;
 pub mod entry;
+pub mod entry_payload;
 pub mod append;
 pub mod verify;
 pub mod replay;

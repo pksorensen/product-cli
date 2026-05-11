@@ -332,6 +332,7 @@ mod tests {
                 request: serde_json::Value::Null,
                 created: Vec::new(),
                 changed: Vec::new(),
+                deleted: Vec::new(),
             },
         }
     }
