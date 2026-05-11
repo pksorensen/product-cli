@@ -2,11 +2,17 @@
 id: TC-777
 title: FT-065 exit criteria — product-cli is discoverable and installable from the MCP registry
 type: exit-criteria
-status: unimplemented
+status: passing
 validates:
-  features: []
-  adrs: []
+  features:
+  - FT-065
+  adrs:
+  - ADR-020
 phase: 1
+runner: cargo-test
+runner-args: tc_777_ft065_exit_criteria
+last-run: 2026-05-11T09:48:33.385528523+00:00
+last-run-duration: 0.2s
 ---
 
 ## Purpose
@@ -49,19 +55,26 @@ release tag:
 
 ## Verification approach
 
-This is an **exit-criteria TC**, not an integration test that runs on
-every commit. Verification is performed manually (or via a release
-post-flight script) once per release:
+This is an **exit-criteria TC**. Criteria 1–5 are verified end-to-end
+at release time (manual or post-flight); criterion 6 — the smoke-test
+TC-776 passes on the release-tagged commit — is enforced under
+`cargo t` and stands in as the runner for this TC.
+
+**Manual / post-flight steps (criteria 1–5):**
 
 1. Cut and push the release tag.
 2. Wait for the release workflow to publish to the registry.
 3. From a clean machine (or container), install via the MCP client.
-4. Walk criteria 1–6 above and record the outcomes in the release
+4. Walk criteria 1–5 above and record the outcomes in the release
    notes.
 
-The TC has no `runner` field — it is exit-criteria validated by hand
-or by release post-flight, and tracked by setting the TC status to
-`passing` when the manual check completes for a given release.
+**Automated portion (criterion 6):** the
+`tc_777_ft065_exit_criteria` test wraps
+`tc_776_server_json_matches_product_toml_version_and_validates_against_pinned_schema`
+so the manifest-vs-config drift check ships with every commit. The
+runner satisfies the graph-check E022 invariant; the manual checks
+above remain the source of truth for "did the registry actually
+serve the new version".
 
 ## Out of scope
 

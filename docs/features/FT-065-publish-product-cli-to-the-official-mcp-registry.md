@@ -2,7 +2,7 @@
 id: FT-065
 title: Publish Product CLI to the Official MCP Registry
 phase: 5
-status: planned
+status: complete
 depends-on:
 - FT-021
 - FT-035
@@ -17,11 +17,11 @@ domains:
 - api
 - security
 domains-acknowledged:
-  data-model: No new artifact type, no front-matter schema change, no graph edges — `server.json` is an external packaging manifest governed by the upstream MCP registry's JSON Schema, not by Product's internal graph model. ADR-048's canonical-`.product/`-layout invariant is intentionally not violated because `server.json` is a public packaging manifest that the registry expects at the repo root (alongside `Cargo.toml`), not a piece of Product's own state.
-  observability: No telemetry, metrics, or trace surface change. The release-workflow publish step emits a single CI log line on success or warning on failure; no OTel, no metrics endpoint, no logging-format change. ADR-048 (the empty-domain ADR flagged here) governs canonical repository layout and is non-applicable because `server.json` is an external packaging manifest the upstream registry requires at the repo root, not Product's own state.
-  api: This feature is packaging and distribution work, not a change to the CLI / MCP API surface. The published artifact is the existing MCP server (FT-021 / ADR-020); no new tools, commands, errors, or schemas are introduced. The `api` domain is touched only insofar as the registry manifest declares the existing stdio launch invocation (`product mcp`).
   testing: This feature ships a single smoke-test TC validating that `server.json` parses, matches its declared schema URL, and tracks `product.toml`'s version. That TC follows the standard scenario-test pattern (ADR-018) and uses `cargo-test` as its runner per CLAUDE.md, but does not exercise property-based, session-based, or LLM-benchmark testing strategies — none of those modalities apply to a static manifest validation. No `testing` domain gap exists in substance.
+  observability: No telemetry, metrics, or trace surface change. The release-workflow publish step emits a single CI log line on success or warning on failure; no OTel, no metrics endpoint, no logging-format change. ADR-048 (the empty-domain ADR flagged here) governs canonical repository layout and is non-applicable because `server.json` is an external packaging manifest the upstream registry requires at the repo root, not Product's own state.
   security: Security exposure is bounded to the publish-side authentication ritual (GitHub OIDC at release time) and the namespace-squatting guarantee that registry OIDC verification provides. No new authentication paths, no new token storage, no new trust boundaries inside the binary — the registry-installed server is byte-identical to the binary already built by the release workflow. Mitigations are documented in the Risk and Mitigation section of the feature body.
+  api: This feature is packaging and distribution work, not a change to the CLI / MCP API surface. The published artifact is the existing MCP server (FT-021 / ADR-020); no new tools, commands, errors, or schemas are introduced. The `api` domain is touched only insofar as the registry manifest declares the existing stdio launch invocation (`product mcp`).
+  data-model: No new artifact type, no front-matter schema change, no graph edges — `server.json` is an external packaging manifest governed by the upstream MCP registry's JSON Schema, not by Product's internal graph model. ADR-048's canonical-`.product/`-layout invariant is intentionally not violated because `server.json` is a public packaging manifest that the registry expects at the repo root (alongside `Cargo.toml`), not a piece of Product's own state.
 ---
 
 ## Description

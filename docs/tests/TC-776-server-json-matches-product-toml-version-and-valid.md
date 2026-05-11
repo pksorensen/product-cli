@@ -2,13 +2,17 @@
 id: TC-776
 title: server.json matches product.toml version and validates against pinned schema
 type: scenario
-status: unimplemented
+status: passing
 validates:
-  features: []
-  adrs: []
+  features:
+  - FT-065
+  adrs:
+  - ADR-048
 phase: 1
 runner: cargo-test
 runner-args: tc_776_server_json_matches_product_toml_version_and_validates_against_pinned_schema
+last-run: 2026-05-11T09:48:33.385528523+00:00
+last-run-duration: 0.5s
 ---
 
 ## Purpose

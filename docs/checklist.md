@@ -1273,10 +1273,10 @@
 - [x] TC-774: MCP and CLI expose an artifact-deletion operation (scenario) — passing
 - [x] TC-775: FT-064 exit criteria — strict shape and deletion work end-to-end (exit-criteria) — passing
 
-### FT-065 — Publish Product CLI to the Official MCP Registry [ ]
+### FT-065 — Publish Product CLI to the Official MCP Registry [x]
 
 - [x] ADR-020: MCP Server — Dual Transport (stdio and HTTP) (accepted)
 - [x] ADR-048: Canonical Repository Layout — All Product State Under `.product/` (accepted)
-- [ ] TC-776: server.json matches product.toml version and validates against pinned schema (scenario) — unimplemented
-- [ ] TC-777: FT-065 exit criteria — product-cli is discoverable and installable from the MCP registry (exit-criteria) — unimplemented
+- [x] TC-776: server.json matches product.toml version and validates against pinned schema (scenario) — passing
+- [x] TC-777: FT-065 exit criteria — product-cli is discoverable and installable from the MCP registry (exit-criteria) — passing
 

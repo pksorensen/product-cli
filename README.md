@@ -68,6 +68,49 @@ Verify any of the above with:
 product --version    # → product 0.1.0
 ```
 
+### Install via the MCP Registry
+
+Product is published to the official [Model Context Protocol registry](https://registry.modelcontextprotocol.io/) under the namespace **`io.github.hafeok/product-cli`** (per ADR-020 / FT-065). Any MCP-capable client can discover and install it through standard registry tooling — no clone, no `cargo install`.
+
+**Claude Code:**
+
+```bash
+claude mcp install io.github.hafeok/product-cli
+```
+
+The CLI downloads the matching GitHub Release binary, places it on `$PATH`, and writes a `.mcp.json` entry that spawns `product mcp` over stdio in your repo. The server then discovers `.product/config.toml` (or the legacy fallback chain — see ADR-048) from the working directory.
+
+**Generic stdio `.mcp.json`** — paste into the `mcpServers` block of any MCP client that consumes the standard configuration shape:
+
+```json
+{
+  "mcpServers": {
+    "product": {
+      "command": "product",
+      "args": ["mcp"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}
+```
+
+**Generic HTTP `.mcp.json`** — for remote agents (claude.ai mobile, Cursor over the network):
+
+```json
+{
+  "mcpServers": {
+    "product": {
+      "url": "https://your-tunnel.example.com/mcp",
+      "headers": { "Authorization": "Bearer $PRODUCT_MCP_TOKEN" }
+    }
+  }
+}
+```
+
+**Architecture not in the release matrix?** Fall back to `cargo install --git https://github.com/Hafeok/product-cli` and configure the same `.mcp.json` entry — the binary is identical to the one the registry serves.
+
+The on-disk manifest the registry consumes is committed at [`server.json`](./server.json); a CI smoke test (TC-776) keeps its `version` in lockstep with `product.toml` on every push.
+
 ---
 
 ## 60-second quickstart

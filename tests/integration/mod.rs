@@ -20564,3 +20564,255 @@ fn tc_767_ft063_exit_criteria() {
     conflict.assert_exit(1);
     conflict.assert_stderr_contains("E028");
 }
+
+// ---------------------------------------------------------------------------
+// FT-065 — Publish Product CLI to the Official MCP Registry
+// ---------------------------------------------------------------------------
+//
+// TC-776: validate the committed `server.json` MCP-registry manifest against
+// the offline schema fixture and assert version-parity with the resolved
+// Product config (see ADR-048 discovery fallback). Runs under `cargo t` so a
+// drift between `product.toml`'s `version` and `server.json`'s `version` is
+// caught before any release workflow runs `mcp-publisher publish`.
+//
+// The schema fixture lives at `tests/fixtures/server.schema.json` and is a
+// verbatim copy of the URL pinned by the manifest's `$schema` field. Refresh
+// is a deliberate fixture-update commit, never an in-test fetch — the test
+// is fully offline.
+
+/// FT-065 — repo owner used to derive the registry namespace
+/// `io.github.{owner}/product-cli`. Lower-cased to match the convention
+/// observed in the official registry's published entries.
+const FT065_EXPECTED_NAME: &str = "io.github.hafeok/product-cli";
+
+/// FT-065 — schema URL pinned by the committed `server.json`. The fixture
+/// at `tests/fixtures/server.schema.json` must be a verbatim copy of the
+/// document served from this URL.
+const FT065_PINNED_SCHEMA_URL: &str =
+    "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json";
+
+/// TC-776 — server.json matches product.toml version and validates against
+/// the pinned schema.
+#[test]
+fn tc_776_server_json_matches_product_toml_version_and_validates_against_pinned_schema() {
+    let repo_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+
+    // 1. Resolve the active Product config via the ADR-048 discovery
+    //    fallback chain (`.product/config.toml` → `.product/product.toml`
+    //    → `product.toml` at root). This is the same logic
+    //    `ProductConfig::discover` runs at command time, so the test
+    //    works identically on legacy and canonical layouts.
+    let config_path = product_lib::config::find_config_in_dir(&repo_root).unwrap_or_else(|| {
+        panic!(
+            "FT-065: no Product config found at {} via ADR-048 discovery — \
+             expected one of {:?}",
+            repo_root.display(),
+            product_lib::config::CONFIG_CANDIDATES
+        );
+    });
+    let config = product_lib::config::ProductConfig::load(&config_path).unwrap_or_else(|e| {
+        panic!(
+            "FT-065: failed to load Product config at {}: {}",
+            config_path.display(),
+            e
+        );
+    });
+    let config_version = config.version.trim().to_string();
+    assert!(
+        !config_version.is_empty(),
+        "FT-065: resolved Product config at {} has an empty `version` field",
+        config_path.display(),
+    );
+
+    // 2. Read the committed server.json from the repo root. ADR-048 Rule
+    //    2 fixes this path — moving it under `.product/` would break the
+    //    upstream registry's convention and this test in lockstep.
+    let manifest_path = repo_root.join("server.json");
+    assert!(
+        manifest_path.is_file(),
+        "FT-065: expected the MCP-registry manifest at {} (per ADR-048 Rule 2 \
+         the registry's `server.json` lives at the repo root, not under .product/)",
+        manifest_path.display(),
+    );
+    let manifest_text = std::fs::read_to_string(&manifest_path).unwrap_or_else(|e| {
+        panic!(
+            "FT-065: failed to read {}: {}",
+            manifest_path.display(),
+            e
+        );
+    });
+    let manifest: serde_json::Value = serde_json::from_str(&manifest_text).unwrap_or_else(|e| {
+        panic!(
+            "FT-065: server.json at {} is not valid JSON: {}",
+            manifest_path.display(),
+            e
+        );
+    });
+
+    // 3. The 2025-09-29 ServerDetail schema requires `name`, `description`,
+    //    `version` at the top level. Spot-check them with rustc-style
+    //    diagnostics before handing off to the schema validator so the
+    //    failure messages name the bad field.
+    let manifest_name = manifest
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or_else(|| panic!("FT-065: server.json missing required `name` field"));
+    assert_eq!(
+        manifest_name, FT065_EXPECTED_NAME,
+        "FT-065: server.json `name` must be exactly `{}` (got `{}`). \
+         A namespace typo would make the published registry entry unreachable.",
+        FT065_EXPECTED_NAME, manifest_name,
+    );
+
+    let manifest_schema_url = manifest
+        .get("$schema")
+        .and_then(|v| v.as_str())
+        .unwrap_or_else(|| {
+            panic!(
+                "FT-065: server.json missing required `$schema` field — pin it \
+                 to the dated registry schema URL so fixture refreshes are deliberate"
+            );
+        });
+    assert_eq!(
+        manifest_schema_url, FT065_PINNED_SCHEMA_URL,
+        "FT-065: server.json `$schema` must equal the pinned URL. \
+         If you intentionally rolled the schema forward, also refresh \
+         tests/fixtures/server.schema.json from the new URL.",
+    );
+
+    let manifest_version = manifest
+        .get("version")
+        .and_then(|v| v.as_str())
+        .unwrap_or_else(|| {
+            panic!(
+                "FT-065: server.json missing required `version` field at the top \
+                 level (the 2025-09-29 ServerDetail schema requires it under \
+                 Server.version)"
+            );
+        });
+    assert_eq!(
+        manifest_version, config_version.as_str(),
+        "FT-065: server.json `version` (`{}`) must match Product config `version` \
+         (`{}`) at {} byte-for-byte. A maintainer cutting a release must bump both \
+         in lockstep.",
+        manifest_version,
+        config_version,
+        config_path.display(),
+    );
+
+    // 4. The manifest must declare at least one `packages` entry — that's
+    //    the registry's hook for telling MCP clients how to install the
+    //    server (see ADR-020 for the dual-transport launch model the
+    //    package's `runtime_arguments` materialise).
+    let packages = manifest
+        .get("packages")
+        .and_then(|v| v.as_array())
+        .unwrap_or_else(|| {
+            panic!(
+                "FT-065: server.json must declare a `packages` array — the \
+                 registry uses it to route MCP clients to a downloadable artifact"
+            );
+        });
+    assert!(
+        !packages.is_empty(),
+        "FT-065: server.json `packages` array is empty — at least one entry is \
+         required so registry clients can install the binary",
+    );
+
+    // The release-time invariant: the package version must agree with the
+    // top-level manifest version (and therefore with `product.toml`).
+    for (idx, pkg) in packages.iter().enumerate() {
+        let pkg_version = pkg
+            .get("version")
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| {
+                panic!(
+                    "FT-065: server.json packages[{}] missing required `version` \
+                     field",
+                    idx
+                );
+            });
+        assert_eq!(
+            pkg_version, manifest_version,
+            "FT-065: server.json packages[{}].version (`{}`) must match the \
+             top-level `version` (`{}`) — divergence would publish a registry \
+             entry pointing at the wrong release tag",
+            idx, pkg_version, manifest_version,
+        );
+    }
+
+    // 5. Load the offline schema fixture and verify it matches the URL the
+    //    manifest pins. This catches the failure mode where someone bumps
+    //    `$schema` in the manifest but forgets to refresh the fixture.
+    let schema_fixture_path = repo_root.join("tests/fixtures/server.schema.json");
+    let schema_text = std::fs::read_to_string(&schema_fixture_path).unwrap_or_else(|e| {
+        panic!(
+            "FT-065: failed to read schema fixture at {}: {}",
+            schema_fixture_path.display(),
+            e
+        );
+    });
+    let schema: serde_json::Value = serde_json::from_str(&schema_text).unwrap_or_else(|e| {
+        panic!(
+            "FT-065: schema fixture at {} is not valid JSON: {}",
+            schema_fixture_path.display(),
+            e
+        );
+    });
+    let schema_id = schema
+        .get("$id")
+        .and_then(|v| v.as_str())
+        .unwrap_or_else(|| {
+            panic!(
+                "FT-065: schema fixture at {} is missing `$id` — refetch from {} \
+                 with `curl -o tests/fixtures/server.schema.json {}`",
+                schema_fixture_path.display(),
+                FT065_PINNED_SCHEMA_URL,
+                FT065_PINNED_SCHEMA_URL,
+            );
+        });
+    assert_eq!(
+        schema_id, FT065_PINNED_SCHEMA_URL,
+        "FT-065: schema fixture `$id` ({}) does not match the manifest's pinned \
+         `$schema` URL ({}). Refresh the fixture from the pinned URL.",
+        schema_id, FT065_PINNED_SCHEMA_URL,
+    );
+
+    // 6. Full JSON Schema validation. The manifest must satisfy every
+    //    constraint the offline fixture documents — the same shape the
+    //    `mcp-publisher` CLI will check at publish time.
+    let validator = jsonschema::draft7::new(&schema).unwrap_or_else(|e| {
+        panic!(
+            "FT-065: schema fixture at {} is not a valid Draft-07 JSON Schema: {}",
+            schema_fixture_path.display(),
+            e
+        );
+    });
+    if !validator.is_valid(&manifest) {
+        let errors: Vec<String> = validator
+            .iter_errors(&manifest)
+            .map(|e| format!("  - at `{}`: {}", e.instance_path(), e))
+            .collect();
+        panic!(
+            "FT-065: server.json at {} fails schema validation against the pinned \
+             {} fixture:\n{}",
+            manifest_path.display(),
+            FT065_PINNED_SCHEMA_URL,
+            errors.join("\n"),
+        );
+    }
+}
+
+/// TC-777 — FT-065 exit criteria: product-cli is discoverable and installable
+/// from the MCP registry.
+///
+/// The user-observable acceptance gate for FT-065 is verified end-to-end at
+/// release time (manual or post-flight) — registry lookup, browse-from-client,
+/// install-from-client, first MCP call, version parity. The committable
+/// portion of that gate is criterion 6: the smoke-test TC-776 passes on the
+/// release-tagged commit. This wrapper enforces that here and stands in as
+/// the runner for TC-777 so the graph-check E022 invariant is satisfied.
+#[test]
+fn tc_777_ft065_exit_criteria() {
+    tc_776_server_json_matches_product_toml_version_and_validates_against_pinned_schema();
+}
