@@ -2,7 +2,8 @@
 id: ADR-021
 title: Implementation Pipeline — `product verify` and the Knowledge Boundary
 status: accepted
-features: []
+features:
+- FT-068
 supersedes: []
 superseded-by: []
 domains:

@@ -2,7 +2,8 @@
 id: ADR-043
 title: Slice + Adapter Architecture for Command Handlers
 status: accepted
-features: []
+features:
+- FT-068
 supersedes: []
 superseded-by: []
 domains:

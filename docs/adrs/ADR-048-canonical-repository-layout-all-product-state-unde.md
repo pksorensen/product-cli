@@ -4,6 +4,7 @@ title: Canonical Repository Layout — All Product State Under `.product/`
 status: accepted
 features:
 - FT-057
+- FT-068
 supersedes: []
 superseded-by: []
 domains: []

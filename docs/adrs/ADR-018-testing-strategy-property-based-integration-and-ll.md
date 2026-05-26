@@ -2,7 +2,8 @@
 id: ADR-018
 title: Testing Strategy — Property-Based, Session-Based, and LLM Benchmark
 status: accepted
-features: []
+features:
+- FT-068
 supersedes: []
 superseded-by: []
 domains:
