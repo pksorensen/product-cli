@@ -46,7 +46,10 @@ pub fn validate_domains(
         }
     }
 
-    // W010: unacknowledged cross-cutting ADR
+    // W010: unacknowledged cross-cutting ADR.
+    // FT-067: this stays narrow — only `cross-cutting` ADRs require
+    // per-feature acknowledgement. `platform` ADRs are enforced project-wide
+    // and never produce W010.
     let cross_cutting: Vec<&Adr> = graph.adrs.values()
         .filter(|a| a.front.scope == AdrScope::CrossCutting)
         .collect();
@@ -79,8 +82,13 @@ pub fn validate_domains(
             continue;
         }
         for domain in &f.front.domains {
+            // FT-067: a domain-scoped ADR is any ADR carrying the domain
+            // that is NOT enforced project-wide (i.e. not cross-cutting and
+            // not platform). Platform ADRs are enforced by the substrate, so
+            // a feature touching the domain doesn't need to link/acknowledge
+            // them per-feature.
             let domain_adrs: Vec<&Adr> = graph.adrs.values()
-                .filter(|a| a.front.domains.contains(domain) && a.front.scope != AdrScope::CrossCutting)
+                .filter(|a| a.front.domains.contains(domain) && !a.front.scope.is_platform_wide())
                 .collect();
 
             if domain_adrs.is_empty() {

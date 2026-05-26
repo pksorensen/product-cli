@@ -7,6 +7,7 @@
 pub mod conflicts;
 pub mod create;
 pub mod field_edits;
+pub mod scope_audit;
 pub mod seal;
 pub mod status_change;
 pub mod supersede;
@@ -18,6 +19,7 @@ pub use field_edits::{
     plan_scope_change, plan_source_files_edit, DomainEditPlan, ScopeChangePlan,
     SourceFilesEditPlan,
 };
+pub use scope_audit::{apply_audit, plan_audit, render_audit, AuditPlan, AuditSuggestion};
 pub use seal::{
     apply_amend, apply_seal, plan_amend, plan_seal, unsealed_accepted_ids, AmendPlan, SealPlan,
 };

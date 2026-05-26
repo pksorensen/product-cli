@@ -148,6 +148,11 @@ pub struct Amendment {
 #[serde(rename_all = "kebab-case")]
 pub enum AdrScope {
     CrossCutting,
+    /// FT-067: decisions enforced once by the platform itself (a fitness
+    /// function TC, chokepoint validator, build-time check) rather than
+    /// re-considered on every feature. Preflight treats these as
+    /// informational only; verify --platform still runs their TCs.
+    Platform,
     Domain,
     #[default]
     FeatureSpecific,
@@ -157,10 +162,22 @@ fn default_scope() -> AdrScope {
     AdrScope::FeatureSpecific
 }
 
+impl AdrScope {
+    /// FT-067: true when this ADR is enforced project-wide (cross-cutting
+    /// OR platform). Use this when the question is "is this ADR an
+    /// architectural fact every feature inherits?". Use the narrower
+    /// `== CrossCutting` test when the question is "must every feature
+    /// link or acknowledge this?".
+    pub fn is_platform_wide(self) -> bool {
+        matches!(self, AdrScope::CrossCutting | AdrScope::Platform)
+    }
+}
+
 impl std::fmt::Display for AdrScope {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::CrossCutting => write!(f, "cross-cutting"),
+            Self::Platform => write!(f, "platform"),
             Self::Domain => write!(f, "domain"),
             Self::FeatureSpecific => write!(f, "feature-specific"),
         }
@@ -172,10 +189,11 @@ impl std::str::FromStr for AdrScope {
     fn from_str(s: &str) -> std::result::Result<Self, String> {
         match s {
             "cross-cutting" => Ok(Self::CrossCutting),
+            "platform" => Ok(Self::Platform),
             "domain" => Ok(Self::Domain),
             "feature-specific" => Ok(Self::FeatureSpecific),
             _ => Err(format!(
-                "unknown scope: '{}'. Valid values: cross-cutting, domain, feature-specific",
+                "unknown scope: '{}'. Valid values: cross-cutting, platform, domain, feature-specific",
                 s
             )),
         }

@@ -81,10 +81,13 @@ fn bundle_feature_inner(
         phase_a.cmp(&phase_b).then(key_a.cmp(&key_b))
     });
 
-    // ADR-025: Three-tier ADR ordering
-    // 1. Cross-cutting ADRs (all, ordered by betweenness centrality)
+    // ADR-025 + FT-067: Three-tier ADR ordering.
+    // 1. Platform-wide ADRs (cross-cutting + platform) — all, ordered by
+    //    betweenness centrality. LLMs should see platform invariants when
+    //    implementing any feature, regardless of whether the feature links
+    //    them, because they are the architectural fabric.
     let mut cross_cutting_ids: Vec<String> = graph.adrs.values()
-        .filter(|a| a.front.scope == AdrScope::CrossCutting)
+        .filter(|a| a.front.scope.is_platform_wide())
         .map(|a| a.front.id.clone())
         .collect();
     cross_cutting_ids.sort_by(|a, b| {
@@ -100,7 +103,7 @@ fn bundle_feature_inner(
         let mut domain_adrs: Vec<(String, f64)> = graph.adrs.values()
             .filter(|a| {
                 a.front.domains.contains(domain)
-                    && a.front.scope != AdrScope::CrossCutting
+                    && !a.front.scope.is_platform_wide()
                     && !feature_linked_adr_ids.contains(&a.front.id)
             })
             .map(|a| {

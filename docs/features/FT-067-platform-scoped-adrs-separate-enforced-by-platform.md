@@ -2,7 +2,7 @@
 id: FT-067
 title: 'Platform-scoped ADRs: separate enforced-by-platform decisions from per-feature gaps'
 phase: 1
-status: planned
+status: complete
 depends-on: []
 adrs:
 - ADR-025
@@ -13,7 +13,17 @@ adrs:
 - ADR-042
 - ADR-047
 - ADR-043
-tests: []
+tests:
+- TC-789
+- TC-790
+- TC-791
+- TC-792
+- TC-793
+- TC-794
+- TC-795
+- TC-796
+- TC-797
+- TC-798
 domains:
 - api
 - data-model

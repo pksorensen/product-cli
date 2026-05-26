@@ -101,7 +101,7 @@ features: [String]     # Default: []. Feature IDs this ADR implements
 supersedes: [String]   # Default: []. ADR IDs this decision supersedes
 superseded-by: [String] # Default: []. ADR IDs that supersede this decision
 domains: [String]      # Default: []. Concern domains this ADR governs
-scope: Enum            # Default: feature-specific. Values: cross-cutting, domain, feature-specific
+scope: Enum            # Default: feature-specific. Values: cross-cutting, platform, domain, feature-specific
 content-hash: String   # Optional. SHA-256 hash for immutability enforcement
 amendments:            # Default: []. Audit trail for approved changes
   - date: String       # ISO 8601 date

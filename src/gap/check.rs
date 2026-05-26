@@ -40,8 +40,40 @@ pub fn check_adr(graph: &KnowledgeGraph, adr_id: &str, baseline: &GapBaseline) -
     check_g001_testable_claims(graph, adr, adr_id, baseline, &mut findings);
     check_g002_formal_invariants(graph, adr, adr_id, baseline, &mut findings);
     check_g009_removes_deprecates_has_absence_tc(graph, adr, adr_id, baseline, &mut findings);
+    check_g010_platform_no_enforcement(graph, adr, adr_id, baseline, &mut findings);
 
     findings
+}
+
+/// G010: ADR with `scope: platform` and zero linked TCs (FT-067).
+/// Soft warning — the scope may simply be wrong.
+fn check_g010_platform_no_enforcement(
+    graph: &KnowledgeGraph,
+    adr: &crate::types::Adr,
+    adr_id: &str,
+    baseline: &GapBaseline,
+    findings: &mut Vec<GapFinding>,
+) {
+    if adr.front.scope != AdrScope::Platform {
+        return;
+    }
+    if graph.tests.values().any(|t| t.front.validates.adrs.contains(&adr_id.to_string())) {
+        return;
+    }
+    let desc = format!("{} has scope: platform but no linked TC", adr_id);
+    let id = gap_id(adr_id, "G010", &[adr_id], &desc);
+    let suppressed = baseline.is_suppressed(&id);
+    findings.push(GapFinding {
+        id,
+        code: "G010".to_string(),
+        severity: GapSeverity::Low,
+        description: desc,
+        affected_artifacts: vec![adr_id.to_string()],
+        suggested_action:
+            "Link a fitness/invariant/absence TC, or change scope to cross-cutting or feature-specific."
+                .to_string(),
+        suppressed,
+    });
 }
 
 /// G009: ADR has non-empty `removes` or `deprecates` but no linked absence TC

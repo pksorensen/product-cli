@@ -13,7 +13,7 @@
 
 use crate::author::prompts as prompt_defs;
 use crate::graph::KnowledgeGraph;
-use crate::types::{Adr, AdrScope};
+use crate::types::Adr;
 use std::collections::HashSet;
 use std::path::Path;
 
@@ -69,9 +69,12 @@ fn related_adr_ids(
 ) -> Vec<String> {
     let mut selected: HashSet<String> = HashSet::new();
 
-    // Cross-cutting
+    // FT-067: include both cross-cutting AND platform ADRs — both are
+    // architectural facts that constrain new proposals. Cross-cutting still
+    // demands per-feature attention, platform is enforced once project-wide,
+    // but for conflict-checking a new ADR they are equally relevant.
     for adr in graph.adrs.values() {
-        if adr.front.id != proposed.front.id && adr.front.scope == AdrScope::CrossCutting {
+        if adr.front.id != proposed.front.id && adr.front.scope.is_platform_wide() {
             selected.insert(adr.front.id.clone());
         }
     }

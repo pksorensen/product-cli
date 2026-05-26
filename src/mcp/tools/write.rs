@@ -135,13 +135,13 @@ fn field_adr_tools() -> Vec<ToolDef> {
     vec![
         ToolDef {
             name: "product_adr_scope".to_string(),
-            description: "Set ADR scope: cross-cutting, domain, or feature-specific.".to_string(),
+            description: "Set ADR scope: cross-cutting, platform, domain, or feature-specific.".to_string(),
             requires_write: true,
             input_schema: serde_json::json!({
                 "type": "object",
                 "properties": {
                     "id": {"type": "string"},
-                    "scope": {"type": "string", "enum": ["cross-cutting", "domain", "feature-specific"]}
+                    "scope": {"type": "string", "enum": ["cross-cutting", "platform", "domain", "feature-specific"]}
                 }, "required": ["id", "scope"]
             }),
         },

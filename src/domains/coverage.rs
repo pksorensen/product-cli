@@ -74,7 +74,10 @@ pub fn build_coverage_matrix(
 }
 
 fn has_cross_cutting_in_domain(graph: &KnowledgeGraph, domain: &str) -> bool {
-    graph.adrs.values().any(|a| a.front.scope == AdrScope::CrossCutting && a.front.domains.contains(&domain.to_string()))
+    // FT-067: a domain has project-wide coverage if any ADR with scope ∈
+    // {cross-cutting, platform} carries that domain. Both meanings count
+    // for "this domain is owned at the platform layer".
+    graph.adrs.values().any(|a| a.front.scope.is_platform_wide() && a.front.domains.contains(&domain.to_string()))
 }
 
 pub fn render_coverage_matrix(matrix: &CoverageMatrix, graph: &KnowledgeGraph) -> String {

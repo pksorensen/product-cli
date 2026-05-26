@@ -50,6 +50,9 @@ pub enum AdrCommands {
     List {
         #[arg(long)]
         status: Option<String>,
+        /// Filter by scope: cross-cutting, platform, domain, feature-specific
+        #[arg(long)]
+        scope: Option<String>,
     },
     /// Create a new ADR file
     New {
@@ -74,8 +77,16 @@ pub enum AdrCommands {
     Scope {
         /// ADR ID
         id: String,
-        /// Scope value: cross-cutting, domain, feature-specific
+        /// Scope value: cross-cutting, platform, domain, feature-specific
         scope: String,
+    },
+    /// FT-067: audit cross-cutting ADRs and suggest platform re-classifications
+    #[command(name = "scope-audit")]
+    ScopeAudit {
+        /// Apply the suggestions (rewrites ADR files atomically per-file).
+        /// Omit for a dry-run that prints suggestions and exits.
+        #[arg(long)]
+        apply: bool,
     },
     /// Show an ADR's details
     Show { id: String },
@@ -127,11 +138,12 @@ pub(crate) fn handle_adr(cmd: AdrCommands, fmt: &str) -> BoxResult {
             super::render(adr_write_ops::adr_domain(&id, add, remove), fmt)
         }
         AdrCommands::Features { id } => super::render(adr_features(&id), fmt),
-        AdrCommands::List { status } => super::render(adr_list(status), fmt),
+        AdrCommands::List { status, scope } => super::render(adr_list(status, scope), fmt),
         AdrCommands::New { title } => super::render(adr_new(&title), fmt),
         AdrCommands::Rehash { id, all } => super::render(super::adr_seal::adr_rehash(id, all), fmt),
         AdrCommands::Review { staged } => adr_review(staged),
         AdrCommands::Scope { id, scope } => super::render(adr_write_ops::adr_scope(&id, &scope), fmt),
+        AdrCommands::ScopeAudit { apply } => super::render(adr_scope_audit(apply), fmt),
         AdrCommands::Show { id } => super::render(adr_show(&id), fmt),
         AdrCommands::SourceFiles { id, add, remove } => {
             super::render(adr_write_ops::adr_source_files(&id, add, remove), fmt)
@@ -146,7 +158,7 @@ pub(crate) fn handle_adr(cmd: AdrCommands, fmt: &str) -> BoxResult {
     }
 }
 
-fn adr_list(status: Option<String>) -> CmdResult {
+fn adr_list(status: Option<String>, scope: Option<String>) -> CmdResult {
     let (_, _, graph) = load_graph_typed()?;
     let mut adrs: Vec<&types::Adr> = graph.adrs.values().collect();
     adrs.sort_by_key(|a| &a.front.id);
@@ -154,24 +166,31 @@ fn adr_list(status: Option<String>) -> CmdResult {
         let target: types::AdrStatus = s.parse().map_err(ProductError::ConfigError)?;
         adrs.retain(|a| a.front.status == target);
     }
+    // FT-067: --scope filters by exact AdrScope value (cross-cutting,
+    // platform, domain, feature-specific).
+    if let Some(ref s) = scope {
+        let target: types::AdrScope = s.parse().map_err(ProductError::ConfigError)?;
+        adrs.retain(|a| a.front.scope == target);
+    }
     let json = serde_json::Value::Array(
         adrs.iter()
             .map(|a| {
                 serde_json::json!({
                     "id": a.front.id,
                     "status": a.front.status.to_string(),
+                    "scope": a.front.scope.to_string(),
                     "title": a.front.title,
                 })
             })
             .collect(),
     );
-    let mut text = format!("{:<10} {:<15} TITLE\n", "ID", "STATUS");
-    text.push_str(&"-".repeat(60));
+    let mut text = format!("{:<10} {:<15} {:<16} TITLE\n", "ID", "STATUS", "SCOPE");
+    text.push_str(&"-".repeat(70));
     text.push('\n');
     for a in &adrs {
         text.push_str(&format!(
-            "{:<10} {:<15} {}\n",
-            a.front.id, a.front.status, a.front.title
+            "{:<10} {:<15} {:<16} {}\n",
+            a.front.id, a.front.status, a.front.scope, a.front.title
         ));
     }
     Ok(Output::both(text, json))
@@ -278,6 +297,34 @@ fn adr_new(title: &str) -> CmdResult {
     let target_dir = config.resolve_path(&root, &config.paths.adrs);
     let path = adr_slice::apply_create(&plan, &target_dir)?;
     Ok(Output::text(format!("Created: {} at {}", plan.id, path.display())))
+}
+
+/// FT-067: `product adr scope-audit [--apply]` — review cross-cutting ADRs
+/// and suggest re-classifications to `platform` where the evidence already
+/// matches the "enforced by the platform itself" pattern. With `--apply`,
+/// rewrite the suggested files atomically per-file.
+fn adr_scope_audit(apply: bool) -> CmdResult {
+    let (_, _, graph) = load_graph_typed()?;
+    let plan = adr_slice::plan_audit(&graph);
+    if apply && !plan.suggestions.is_empty() {
+        // Acquire the write lock only when we actually intend to write.
+        let _lock = acquire_write_lock_typed()?;
+        adr_slice::apply_audit(&plan, &graph)?;
+    }
+    let text = adr_slice::render_audit(&plan, apply);
+    let json = serde_json::json!({
+        "reviewed": plan.reviewed,
+        "suggestions": plan.suggestions.iter().map(|s| serde_json::json!({
+            "adr": s.adr_id,
+            "title": s.adr_title,
+            "current_scope": s.current_scope.to_string(),
+            "suggested_scope": s.suggested_scope.to_string(),
+            "reason": s.reason,
+            "linked_tc_count": s.linked_tc_count,
+        })).collect::<Vec<_>>(),
+        "applied": apply,
+    });
+    Ok(Output::both(text, json))
 }
 
 fn adr_status(id: &str, new_status: &str, by: Option<String>) -> CmdResult {

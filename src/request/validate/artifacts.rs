@@ -91,10 +91,10 @@ fn validate_adr(
     findings: &mut Vec<Finding>,
 ) {
     if let Some(Value::String(s)) = a.fields.get(Value::String("scope".into())) {
-        if !matches!(s.as_str(), "cross-cutting" | "domain" | "feature-specific") {
+        if !matches!(s.as_str(), "cross-cutting" | "platform" | "domain" | "feature-specific") {
             findings.push(Finding::error(
                 "E006",
-                format!("invalid scope '{}' — expected cross-cutting, domain, or feature-specific", s),
+                format!("invalid scope '{}' — expected cross-cutting, platform, domain, or feature-specific", s),
                 format!("$.artifacts[{}].scope", a.index),
             ));
         }

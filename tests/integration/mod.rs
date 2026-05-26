@@ -20818,3 +20818,222 @@ fn tc_776_server_json_matches_product_toml_version_and_validates_against_pinned_
 fn tc_777_ft065_exit_criteria() {
     tc_776_server_json_matches_product_toml_version_and_validates_against_pinned_schema();
 }
+
+// ===========================================================================
+// FT-067 — Platform-scoped ADRs
+// ===========================================================================
+
+/// TC-789: scope: platform parses and round-trips
+#[test]
+fn tc_789_scope_platform_parses_and_round_trips() {
+    let h = harness_with_domains();
+    h.write("docs/adrs/ADR-100-platform.md",
+        "---\nid: ADR-100\ntitle: Platform Decision\nstatus: accepted\nfeatures: []\nsupersedes: []\nsuperseded-by: []\ndomains: [error-handling]\nscope: platform\n---\n\nPlatform decision body.\n");
+    // adr show prints scope: platform verbatim
+    let out = h.run(&["adr", "show", "ADR-100"]);
+    out.assert_exit(0);
+    // graph check should not error on this scope value
+    let out2 = h.run(&["graph", "check"]);
+    assert!(
+        out2.exit_code <= 2,
+        "graph check should not error on scope: platform (got exit {})",
+        out2.exit_code
+    );
+}
+
+/// TC-790: adr scope <id> platform writes scope: platform to front-matter
+#[test]
+fn tc_790_adr_scope_platform_writes_field() {
+    let h = harness_with_domains();
+    h.write("docs/adrs/ADR-001-test.md",
+        "---\nid: ADR-001\ntitle: Test\nstatus: proposed\nfeatures: []\nsupersedes: []\nsuperseded-by: []\n---\n\nBody.\n");
+    let out = h.run(&["adr", "scope", "ADR-001", "platform"]);
+    out.assert_exit(0);
+    let content = h.read("docs/adrs/ADR-001-test.md");
+    assert!(content.contains("scope: platform"),
+        "scope should be platform in front-matter, got:\n{}", content);
+}
+
+/// TC-791: adr list --scope platform returns exactly platform-scoped ADRs
+#[test]
+fn tc_791_adr_list_scope_platform_filter() {
+    let h = harness_with_domains();
+    h.write("docs/adrs/ADR-001-cc.md",
+        "---\nid: ADR-001\ntitle: Cross\nstatus: accepted\nfeatures: []\nsupersedes: []\nsuperseded-by: []\ndomains: []\nscope: cross-cutting\n---\n\nb.\n");
+    h.write("docs/adrs/ADR-002-pl.md",
+        "---\nid: ADR-002\ntitle: Plat\nstatus: accepted\nfeatures: []\nsupersedes: []\nsuperseded-by: []\ndomains: []\nscope: platform\n---\n\nb.\n");
+    h.write("docs/adrs/ADR-003-fs.md",
+        "---\nid: ADR-003\ntitle: FeatSpec\nstatus: accepted\nfeatures: []\nsupersedes: []\nsuperseded-by: []\ndomains: []\nscope: feature-specific\n---\n\nb.\n");
+    let out = h.run(&["adr", "list", "--scope", "platform"]);
+    out.assert_exit(0);
+    assert!(out.stdout.contains("ADR-002"), "should list ADR-002 (platform)");
+    assert!(!out.stdout.contains("ADR-001"), "should NOT list ADR-001 (cross-cutting)");
+    assert!(!out.stdout.contains("ADR-003"), "should NOT list ADR-003 (feature-specific)");
+}
+
+/// TC-792: preflight on a feature that does NOT link a platform ADR exits 0
+/// and lists the ADR in a Platform Invariants section.
+#[test]
+fn tc_792_preflight_platform_invariant_is_informational() {
+    let h = harness_with_domains();
+    // A platform-scoped ADR — not linked by the feature.
+    h.write("docs/adrs/ADR-100-platform.md",
+        "---\nid: ADR-100\ntitle: Code quality enforced by lint\nstatus: accepted\nfeatures: []\nsupersedes: []\nsuperseded-by: []\ndomains: [error-handling]\nscope: platform\n---\n\nPlatform invariant.\n");
+    // Feature does not link the platform ADR and declares no domains.
+    h.write("docs/features/FT-001-thing.md",
+        "---\nid: FT-001\ntitle: Thing\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {}\n---\n\nThing.\n");
+    let out = h.run(&["preflight", "FT-001"]);
+    out.assert_exit(0);
+    assert!(
+        out.stdout.contains("Platform Invariants"),
+        "should print Platform Invariants section, got:\n{}",
+        out.stdout
+    );
+    assert!(
+        out.stdout.contains("ADR-100"),
+        "should list ADR-100 under Platform Invariants, got:\n{}",
+        out.stdout
+    );
+    // Critically: preflight should be CLEAN — no gap counted for the
+    // platform ADR.
+    assert!(
+        out.stdout.contains("CLEAN") || !out.stdout.contains("1 cross-cutting gap"),
+        "platform ADR should NOT count as a gap, got:\n{}",
+        out.stdout
+    );
+}
+
+/// TC-793: preflight on a feature linking a cross-cutting ADR still
+/// reports a gap as today (regression — cross-cutting semantics unchanged).
+#[test]
+fn tc_793_preflight_cross_cutting_still_gates() {
+    let h = harness_with_domains();
+    h.write("docs/adrs/ADR-038-obs.md",
+        "---\nid: ADR-038\ntitle: Observability\nstatus: accepted\nfeatures: []\nsupersedes: []\nsuperseded-by: []\ndomains: [networking]\nscope: cross-cutting\n---\n\nObs.\n");
+    h.write("docs/features/FT-009-rate.md",
+        "---\nid: FT-009\ntitle: Rate\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {}\n---\n\nRate.\n");
+    let out = h.run(&["preflight", "FT-009"]);
+    assert_eq!(out.exit_code, 1, "cross-cutting gap should fail preflight");
+    assert!(out.stdout.contains("ADR-038"), "report should name ADR-038");
+}
+
+/// TC-794: gap check reports G010 for a platform-scoped ADR with no
+/// linked TCs.
+#[test]
+fn tc_794_gap_check_platform_no_enforcement() {
+    let h = harness_with_domains();
+    h.write("docs/adrs/ADR-100-platform.md",
+        "---\nid: ADR-100\ntitle: Platform\nstatus: accepted\nfeatures: []\nsupersedes: []\nsuperseded-by: []\ndomains: []\nscope: platform\n---\n\n**Rejected alternatives:**\n\n- Doing nothing.\n");
+    let out = h.run(&["gap", "check"]);
+    // Exit code may be 0/1/2 depending on whether other gaps fire — what
+    // matters is that G010 appears for this ADR.
+    assert!(
+        out.stdout.contains("G010") || out.stderr.contains("G010"),
+        "gap check should emit G010 for platform ADR with no TCs, got stdout:\n{}\nstderr:\n{}",
+        out.stdout,
+        out.stderr
+    );
+}
+
+/// TC-795: gap check does NOT emit G010 once a TC is linked to a
+/// platform ADR.
+#[test]
+fn tc_795_gap_check_g010_cleared_when_tc_linked() {
+    let h = harness_with_domains();
+    h.write("docs/adrs/ADR-100-platform.md",
+        "---\nid: ADR-100\ntitle: Platform\nstatus: accepted\nfeatures: []\nsupersedes: []\nsuperseded-by: []\ndomains: []\nscope: platform\n---\n\n**Rejected alternatives:**\n\n- none.\n");
+    h.write("docs/tests/TC-001-inv.md",
+        "---\nid: TC-001\ntitle: Inv\ntype: invariant\nstatus: passing\nvalidates:\n  features: []\n  adrs: [ADR-100]\nphase: 1\nrunner: cargo-test\nrunner-args: tc_001_inv\n---\n\nInvariant.\n");
+    let out = h.run(&["gap", "check"]);
+    assert!(
+        !out.stdout.contains("G010"),
+        "G010 should be cleared when a TC is linked to the platform ADR, got:\n{}",
+        out.stdout
+    );
+}
+
+/// TC-796: adr scope-audit dry-run prints suggestions and does NOT
+/// modify files. --apply rewrites the scope field.
+#[test]
+fn tc_796_adr_scope_audit_dry_run_then_apply() {
+    let h = harness_with_domains();
+    // Cross-cutting ADR with no feature backlinks + only invariant TCs:
+    // this is the exact pattern scope-audit suggests promoting to platform.
+    h.write("docs/adrs/ADR-100-cc.md",
+        "---\nid: ADR-100\ntitle: CodeQual\nstatus: accepted\nfeatures: []\nsupersedes: []\nsuperseded-by: []\ndomains: []\nscope: cross-cutting\n---\n\nBody.\n");
+    h.write("docs/tests/TC-001-inv.md",
+        "---\nid: TC-001\ntitle: Inv\ntype: invariant\nstatus: passing\nvalidates:\n  features: []\n  adrs: [ADR-100]\nphase: 1\nrunner: cargo-test\nrunner-args: tc_001_inv\n---\n\nInvariant.\n");
+
+    // Snapshot the file before the dry-run.
+    let before = h.read("docs/adrs/ADR-100-cc.md");
+
+    let out = h.run(&["adr", "scope-audit"]);
+    out.assert_exit(0);
+    assert!(out.stdout.contains("ADR-100"),
+        "dry-run should mention ADR-100, got:\n{}", out.stdout);
+    assert!(out.stdout.contains("platform"),
+        "dry-run should mention platform, got:\n{}", out.stdout);
+    let after_dry = h.read("docs/adrs/ADR-100-cc.md");
+    assert_eq!(before, after_dry, "dry-run must not modify files");
+
+    // --apply: actually rewrites.
+    let out2 = h.run(&["adr", "scope-audit", "--apply"]);
+    out2.assert_exit(0);
+    let after_apply = h.read("docs/adrs/ADR-100-cc.md");
+    assert!(after_apply.contains("scope: platform"),
+        "after --apply the scope should be platform, got:\n{}", after_apply);
+}
+
+/// TC-797: verify --platform includes a TC validating a platform-scoped ADR.
+#[test]
+fn tc_797_verify_platform_includes_platform_scoped_tc() {
+    let h = harness_with_domains();
+    h.write("docs/adrs/ADR-100-platform.md",
+        "---\nid: ADR-100\ntitle: Platform\nstatus: accepted\nfeatures: []\nsupersedes: []\nsuperseded-by: []\ndomains: []\nscope: platform\n---\n\nb.\n");
+    // TC of type invariant validating the platform-scoped ADR.
+    // Use a shell runner that succeeds so the TC is recognised and run.
+    h.write("docs/tests/TC-001-inv.md",
+        "---\nid: TC-001\ntitle: Plat Inv\ntype: invariant\nstatus: passing\nvalidates:\n  features: []\n  adrs: [ADR-100]\nphase: 1\nrunner: bash\nrunner-args: \"-c 'true'\"\n---\n\nInv.\n");
+    let out = h.run(&["verify", "--platform"]);
+    // The TC must be picked up by --platform (which previously only ran TCs
+    // linked to cross-cutting ADRs). With FT-067, platform-scoped ADRs are
+    // included too.
+    assert!(
+        out.stdout.contains("TC-001") || out.stderr.contains("TC-001")
+            || out.stdout.contains("1 platform TC") || out.stdout.contains("Running 1 platform"),
+        "verify --platform should run the platform-scoped TC, got stdout:\n{}\nstderr:\n{}",
+        out.stdout, out.stderr
+    );
+}
+
+/// TC-798: FT-067 exit criteria — fixture with 2 cross-cutting, 2 platform,
+/// 1 feature-specific ADR: preflight reports gaps only against the
+/// 2 cross-cutting ADRs.
+#[test]
+fn tc_798_ft_067_exit_criteria() {
+    let h = harness_with_domains();
+    h.write("docs/adrs/ADR-001-cc-a.md",
+        "---\nid: ADR-001\ntitle: CC A\nstatus: accepted\nfeatures: []\nsupersedes: []\nsuperseded-by: []\ndomains: [error-handling]\nscope: cross-cutting\n---\n\nb.\n");
+    h.write("docs/adrs/ADR-002-cc-b.md",
+        "---\nid: ADR-002\ntitle: CC B\nstatus: accepted\nfeatures: []\nsupersedes: []\nsuperseded-by: []\ndomains: [error-handling]\nscope: cross-cutting\n---\n\nb.\n");
+    h.write("docs/adrs/ADR-003-pl-a.md",
+        "---\nid: ADR-003\ntitle: Plat A\nstatus: accepted\nfeatures: []\nsupersedes: []\nsuperseded-by: []\ndomains: []\nscope: platform\n---\n\nb.\n");
+    h.write("docs/adrs/ADR-004-pl-b.md",
+        "---\nid: ADR-004\ntitle: Plat B\nstatus: accepted\nfeatures: []\nsupersedes: []\nsuperseded-by: []\ndomains: []\nscope: platform\n---\n\nb.\n");
+    h.write("docs/adrs/ADR-005-fs.md",
+        "---\nid: ADR-005\ntitle: FS\nstatus: accepted\nfeatures: []\nsupersedes: []\nsuperseded-by: []\ndomains: []\nscope: feature-specific\n---\n\nb.\n");
+    h.write("docs/features/FT-001-thing.md",
+        "---\nid: FT-001\ntitle: Thing\nphase: 1\nstatus: planned\ndepends-on: []\nadrs: []\ntests: []\ndomains: []\ndomains-acknowledged: {}\n---\n\nThing.\n");
+    let out = h.run(&["preflight", "FT-001"]);
+    // Two cross-cutting gaps -> exit 1.
+    assert_eq!(out.exit_code, 1,
+        "should exit 1 with exactly 2 cross-cutting gaps, got stdout:\n{}\nstderr:\n{}",
+        out.stdout, out.stderr);
+    assert!(out.stdout.contains("ADR-001"), "should mention ADR-001 (cross-cutting)");
+    assert!(out.stdout.contains("ADR-002"), "should mention ADR-002 (cross-cutting)");
+    // Platform ADRs appear as informational invariants, not gaps.
+    assert!(out.stdout.contains("Platform Invariants"),
+        "should have Platform Invariants section, got:\n{}", out.stdout);
+    assert!(out.stdout.contains("ADR-003"), "should list ADR-003 under platform");
+    assert!(out.stdout.contains("ADR-004"), "should list ADR-004 under platform");
+}

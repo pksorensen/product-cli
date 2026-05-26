@@ -49,17 +49,21 @@ pub(crate) fn feature_link(
         changed |= link_dep(&mut front, id, &dep_id, f, &graph)?;
     }
 
-    // Interactive TC inference when an ADR link was added (ADR-027)
+    // Interactive TC inference when an ADR link was added (ADR-027).
+    // FT-067: skip platform-wide ADRs (cross-cutting OR platform). For
+    // cross-cutting we'd be linking TCs to every feature touching the ADR
+    // (noise); for platform the TC is enforced once at the substrate, so
+    // there's no per-feature link to infer either. The narrow predicate
+    // (CrossCutting-only) became `is_platform_wide()` to cover both.
     if adr_linked {
         if let Some(ref adr_id) = adr {
-            // Check if the ADR is cross-cutting — skip if so
-            let is_cross_cutting = graph
+            let is_platform_wide = graph
                 .adrs
                 .get(adr_id.as_str())
-                .map(|a| a.front.scope == types::AdrScope::CrossCutting)
+                .map(|a| a.front.scope.is_platform_wide())
                 .unwrap_or(false);
 
-            if !is_cross_cutting {
+            if !is_platform_wide {
                 let inferred = compute_inferred_tc_links(&graph, id, adr_id);
                 if !inferred.is_empty() {
                     println!();
