@@ -77,10 +77,14 @@ pub fn start_session(
     };
 
     let prompt_path = root.join("benchmarks/prompts").join(prompt_name);
+    // default_content() keys are "author-feature" / "author-adr" / "author-review",
+    // but SessionType::Display renders just "feature" / "adr" / "review" — without
+    // the prefix the lookup falls through to the empty-string fallback and the
+    // curated methodology prompt is silently dropped.
     let base_prompt = if prompt_path.exists() {
         std::fs::read_to_string(&prompt_path).unwrap_or_default()
     } else {
-        prompts::default_content(&session_type.to_string().replace(' ', "-"))
+        prompts::default_content(&format!("author-{}", session_type))
     };
     let prompt = format!("{}\n\n{}", base_prompt, schema_prompt());
 
@@ -172,10 +176,16 @@ fn cli_binary(cli: AgentCli) -> &'static str {
 }
 
 fn launch_claude(tmp_path: &Path, mcp_json: &str, root: &Path) -> std::io::Result<std::process::ExitStatus> {
+    // Claude Code v2 dropped `--system-prompt-file` outside `--bare` mode,
+    // but `--bare` disables OAuth/keychain auth (requires ANTHROPIC_API_KEY).
+    // Authoring prompts are small (~1-2 KB) so `--system-prompt <content>`
+    // fits comfortably under MAX_ARG_STRLEN (128 KB per argv entry) and
+    // keeps OAuth + LSP + hooks + CLAUDE.md auto-discovery intact.
+    let prompt = std::fs::read_to_string(tmp_path)?;
     Command::new("claude")
         .args([
-            "--system-prompt-file",
-            &tmp_path.display().to_string(),
+            "--system-prompt",
+            &prompt,
             "--tools",
             "Read",
             "--allowedTools",
