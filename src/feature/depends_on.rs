@@ -163,6 +163,7 @@ mod tests {
                 tests: vec![],
                 domains: vec![],
                 domains_acknowledged: HashMap::new(),
+                patterns: vec![],
                 due_date: None,
                 bundle: None,
             },

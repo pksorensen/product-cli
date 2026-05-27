@@ -15,6 +15,7 @@ mod dispatch;
 mod drift;
 mod drift_diff;
 mod feature;
+mod feature_fields;
 mod feature_write;
 mod gap;
 mod graph_autolink;
@@ -29,6 +30,7 @@ mod metrics_cmd;
 mod migrate;
 mod onboard;
 mod output;
+mod pattern;
 mod preflight;
 mod prompts_cmd;
 mod request_builder_add;
@@ -60,6 +62,7 @@ pub use self::hash::HashCommands;
 pub use self::metrics_cmd::MetricsCommands;
 pub use self::migrate::MigrateCommands;
 pub use self::onboard::OnboardCommands;
+pub use self::pattern::PatternCommands;
 pub use self::prompts_cmd::PromptsCommands;
 
 #[derive(Subcommand)]
@@ -206,6 +209,14 @@ pub enum Commands {
         /// Run non-interactively via claude -p (no human in the loop)
         #[arg(long)]
         headless: bool,
+        /// Disable Step 0a auto-fill of TC runner config (FT-068)
+        #[arg(long = "no-auto-runners")]
+        no_auto_runners: bool,
+        /// Prompt template profile (FT-074). Use "legacy-template" for the
+        /// pre-FT-074 bundle shape without Patterns / observes inline /
+        /// ADR-051 hard-constraint line.
+        #[arg(long)]
+        target: Option<String>,
     },
     /// Initialize a new Product repository (ADR-033, ADR-048)
     Init {
@@ -275,6 +286,11 @@ pub enum Commands {
     Onboard {
         #[command(subcommand)]
         command: OnboardCommands,
+    },
+    /// Pattern artifact management (FT-070, ADR-050)
+    Pattern {
+        #[command(subcommand)]
+        command: PatternCommands,
     },
     /// Pre-flight analysis — check domain and cross-cutting coverage
     Preflight {

@@ -53,7 +53,7 @@ fn parse_artifact_type(map: &Mapping, index: usize) -> Result<ArtifactType, Vec<
         vec![Finding::error(
             "E001",
             format!(
-                "unknown artifact type '{}' — expected one of: feature, adr, tc, dep",
+                "unknown artifact type '{}' — expected one of: feature, adr, tc, dep, pattern",
                 type_str
             ),
             format!("$.artifacts[{}].type", index),

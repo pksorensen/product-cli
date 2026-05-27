@@ -19,6 +19,7 @@ pub use prompts::{PromptInfo, get as prompts_get, init as prompts_init, list as 
 pub enum SessionType {
     Feature,
     Adr,
+    Pattern,
     Review,
 }
 
@@ -27,6 +28,7 @@ impl std::fmt::Display for SessionType {
         match self {
             Self::Feature => write!(f, "feature"),
             Self::Adr => write!(f, "adr"),
+            Self::Pattern => write!(f, "pattern"),
             Self::Review => write!(f, "review"),
         }
     }
@@ -63,6 +65,35 @@ impl std::fmt::Display for AgentCli {
     }
 }
 
+/// FT-073: render the assembled `author feature` prompt content as a string,
+/// including the "Matching patterns" suggestion block when
+/// `[patterns].suggest-domains = true` and the feature's domains overlap
+/// any live pattern's `domains:`. Pure function — no I/O, no agent
+/// launch. The `print-prompt` CLI flag delegates here.
+pub fn render_feature_prompt(
+    config: &ProductConfig,
+    root: &Path,
+    graph: &crate::graph::KnowledgeGraph,
+    feature_domains: &[String],
+) -> String {
+    let prompt_dir = root.join(config.paths.prompts_resolved());
+    let prompt_path = prompt_dir.join("author-feature-v1.md");
+    let base_prompt = if prompt_path.exists() {
+        std::fs::read_to_string(&prompt_path).unwrap_or_default()
+    } else {
+        prompts::default_content("author-feature")
+    };
+    let mut out = format!("{}\n\n{}", base_prompt, schema_prompt());
+    if config.patterns.suggest_domains && !feature_domains.is_empty() {
+        let suggestions = crate::pattern::suggest_patterns(graph, feature_domains);
+        if let Some(block) = crate::pattern::render_suggestions_block(&suggestions) {
+            out.push_str("\n\n");
+            out.push_str(&block);
+        }
+    }
+    out
+}
+
 /// Start an authoring session
 pub fn start_session(
     session_type: SessionType,
@@ -73,6 +104,7 @@ pub fn start_session(
     let prompt_name = match session_type {
         SessionType::Feature => "author-feature-v1.md",
         SessionType::Adr => "author-adr-v1.md",
+        SessionType::Pattern => "author-pattern-v1.md",
         SessionType::Review => "author-review-v1.md",
     };
 
@@ -84,7 +116,13 @@ pub fn start_session(
     let base_prompt = if prompt_path.exists() {
         std::fs::read_to_string(&prompt_path).unwrap_or_default()
     } else {
-        prompts::default_content(&format!("author-{}", session_type))
+        let key = match session_type {
+            SessionType::Feature => "author-feature",
+            SessionType::Adr => "author-adr",
+            SessionType::Pattern => "author-pattern",
+            SessionType::Review => "author-review",
+        };
+        prompts::default_content(key)
     };
     let prompt = format!("{}\n\n{}", base_prompt, schema_prompt());
 

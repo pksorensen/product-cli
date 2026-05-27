@@ -74,10 +74,20 @@ impl GapBaseline {
         self.suppressions.retain(|s| s.id != gap_id);
     }
 
-    /// Move gaps that were suppressed but are no longer detected to the resolved list
-    pub fn update_resolved(&mut self, all_finding_ids: &[String]) {
+    /// Move gaps that were suppressed but are no longer detected to the resolved list.
+    ///
+    /// `checked_adrs` scopes the GC: a suppression whose ADR is not in this list
+    /// is left alone (we ran a partial check and have no evidence its gap is
+    /// resolved). Pass an empty slice to scope to *all* ADRs (full check).
+    pub fn update_resolved(&mut self, checked_adrs: &[String], all_finding_ids: &[String]) {
         let mut newly_resolved = Vec::new();
         self.suppressions.retain(|s| {
+            if !checked_adrs.is_empty() {
+                match adr_id_from_gap_id(&s.id) {
+                    Some(adr) if !checked_adrs.iter().any(|a| a == &adr) => return true,
+                    _ => {}
+                }
+            }
             if all_finding_ids.contains(&s.id) {
                 true // still detected, keep suppression
             } else {
@@ -90,6 +100,16 @@ impl GapBaseline {
             }
         });
         self.resolved.extend(newly_resolved);
+    }
+}
+
+/// Extract the ADR id from a gap_id of the form `GAP-ADR-NNN-CODE-HASH`.
+fn adr_id_from_gap_id(gap_id: &str) -> Option<String> {
+    let parts: Vec<&str> = gap_id.splitn(4, '-').collect();
+    if parts.len() >= 3 && parts[0] == "GAP" {
+        Some(format!("{}-{}", parts[1], parts[2]))
+    } else {
+        None
     }
 }
 

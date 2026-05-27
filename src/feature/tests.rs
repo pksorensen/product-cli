@@ -24,6 +24,7 @@ fn empty_front(id: &str, title: &str) -> FeatureFrontMatter {
         tests: vec![],
         domains: vec![],
         domains_acknowledged: HashMap::new(),
+        patterns: vec![],
         due_date: None,
         bundle: None,
     }
@@ -56,6 +57,7 @@ fn test_criterion(id: &str, features: Vec<String>) -> TestCriterion {
             runner_args: None,
             runner_timeout: None,
             requires: vec![],
+            observes: vec![],
             last_run: None,
             failure_message: None,
             last_run_duration: None,

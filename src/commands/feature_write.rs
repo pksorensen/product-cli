@@ -5,7 +5,7 @@
 //! Legacy handlers (`feature_link`, `feature_acknowledge`) still use BoxResult
 //! and print directly; migrate them when touching.
 
-use product_lib::{domains, error::ProductError, feature as feat, fileops, graph, parser, types};
+use product_lib::{error::ProductError, feature as feat, fileops, graph, parser, types};
 use std::io::{self, BufRead, IsTerminal, Write};
 
 use super::{acquire_write_lock, acquire_write_lock_typed, load_graph, load_graph_typed, BoxResult, CmdResult, Output};
@@ -30,6 +30,7 @@ pub(crate) fn feature_link(
     adr: Option<String>,
     test: Option<String>,
     dep: Option<String>,
+    pattern: Option<String>,
     assume_yes: bool,
 ) -> BoxResult {
     let _lock = acquire_write_lock()?;
@@ -48,18 +49,25 @@ pub(crate) fn feature_link(
     if let Some(dep_id) = dep {
         changed |= link_dep(&mut front, id, &dep_id, f, &graph)?;
     }
+    if let Some(ref pat_id) = pattern {
+        changed |= link_pattern(&mut front, id, pat_id, &graph)?;
+    }
 
-    // Interactive TC inference when an ADR link was added (ADR-027)
+    // Interactive TC inference when an ADR link was added (ADR-027).
+    // FT-067: skip platform-wide ADRs (cross-cutting OR platform). For
+    // cross-cutting we'd be linking TCs to every feature touching the ADR
+    // (noise); for platform the TC is enforced once at the substrate, so
+    // there's no per-feature link to infer either. The narrow predicate
+    // (CrossCutting-only) became `is_platform_wide()` to cover both.
     if adr_linked {
         if let Some(ref adr_id) = adr {
-            // Check if the ADR is cross-cutting — skip if so
-            let is_cross_cutting = graph
+            let is_platform_wide = graph
                 .adrs
                 .get(adr_id.as_str())
-                .map(|a| a.front.scope == types::AdrScope::CrossCutting)
+                .map(|a| a.front.scope.is_platform_wide())
                 .unwrap_or(false);
 
-            if !is_cross_cutting {
+            if !is_platform_wide {
                 let inferred = compute_inferred_tc_links(&graph, id, adr_id);
                 if !inferred.is_empty() {
                     println!();
@@ -114,10 +122,65 @@ pub(crate) fn feature_link(
     }
 
     if changed {
-        let content = parser::render_feature(&front, &f.body);
-        fileops::write_file_atomic(&f.path, &content)?;
+        // Pattern linking needs bidirectional reciprocation
+        // (FT-073, ADR-050) — when --pattern PAT-YYY is set, write both
+        // FT-XXX.patterns += PAT-YYY and PAT-YYY.examples += FT-XXX in one
+        // atomic batch. Other field updates write the feature only.
+        let feature_content = parser::render_feature(&front, &f.body);
+        if let Some(ref pat_id) = pattern {
+            if let Some(pat) = graph.patterns.get(pat_id.as_str()) {
+                if !pat.front.examples.contains(&id.to_string()) {
+                    let mut pat_front = pat.front.clone();
+                    pat_front.examples.push(id.to_string());
+                    let pat_content = parser::render_pattern(&pat_front, &pat.body);
+                    let batch: Vec<(&std::path::Path, &str)> = vec![
+                        (f.path.as_path(), feature_content.as_str()),
+                        (pat.path.as_path(), pat_content.as_str()),
+                    ];
+                    fileops::write_batch_atomic(&batch)?;
+                    return Ok(());
+                }
+            }
+        }
+        fileops::write_file_atomic(&f.path, &feature_content)?;
     }
     Ok(())
+}
+
+/// FT-073: link a feature to a pattern (`feature.patterns` ← PAT-YYY).
+/// Validates the target pattern exists. The reciprocal write to
+/// `pattern.examples` happens in the same atomic batch in the caller.
+/// Emits a deprecation warning to stderr when the pattern is deprecated
+/// (write still proceeds — author may intentionally cite during migration).
+fn link_pattern(
+    front: &mut types::FeatureFrontMatter,
+    id: &str,
+    pat_id: &str,
+    graph: &graph::KnowledgeGraph,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    let pat = graph
+        .patterns
+        .get(pat_id)
+        .ok_or_else(|| ProductError::NotFound(format!("pattern {}", pat_id)))?;
+    if pat.front.status == types::PatternStatus::Deprecated {
+        let replacement = pat
+            .front
+            .deprecated_by
+            .as_deref()
+            .map(|r| format!(" (replaced by {})", r))
+            .unwrap_or_default();
+        eprintln!(
+            "warning[W032]: {} cites deprecated pattern {}{}",
+            id, pat_id, replacement
+        );
+    }
+    if !front.patterns.contains(&pat_id.to_string()) {
+        front.patterns.push(pat_id.to_string());
+        println!("Linked {} -> {}", id, pat_id);
+        return Ok(true);
+    }
+    println!("{} already cites {}", id, pat_id);
+    Ok(false)
 }
 
 /// Compute TC links that would be inferred from linking a specific ADR to a feature
@@ -271,120 +334,6 @@ pub(crate) fn feature_status(id: &str, new_status: &str) -> CmdResult {
     Ok(Output::text(lines.join("\n")))
 }
 
-pub(crate) fn feature_acknowledge(
-    id: &str,
-    domain: Option<String>,
-    adr: Option<String>,
-    reason: Option<String>,
-    remove: bool,
-) -> BoxResult {
-    let _lock = acquire_write_lock()?;
-    let (_, _, graph) = load_graph()?;
-    let feature = graph
-        .features
-        .get(id)
-        .ok_or_else(|| ProductError::NotFound(format!("feature {}", id)))?;
-
-    if remove {
-        // Remove acknowledgement
-        let key = if let Some(ref d) = domain {
-            d.clone()
-        } else if let Some(ref a) = adr {
-            a.clone()
-        } else {
-            return Err(Box::new(ProductError::ConfigError(
-                "must specify --domain or --adr with --remove".to_string(),
-            )));
-        };
-        let mut front = feature.front.clone();
-        front.domains_acknowledged.remove(&key);
-        let content = parser::render_feature(&front, &feature.body);
-        fileops::write_file_atomic(&feature.path, &content)?;
-        println!("{} removed acknowledgement for '{}'", id, key);
-        return Ok(());
-    }
-
-    // Adding acknowledgement — reason is required
-    let reason_str = reason.unwrap_or_default();
-    if reason_str.trim().is_empty() {
-        return Err(Box::new(ProductError::ConfigError(
-            "error[E011]: acknowledgement requires non-empty --reason".to_string(),
-        )));
-    }
-
-    let updated_front = if let Some(ref domain_name) = domain {
-        domains::acknowledge_domain(feature, domain_name, &reason_str)?
-    } else if let Some(ref adr_id) = adr {
-        let adr_obj = graph
-            .adrs
-            .get(adr_id.as_str())
-            .ok_or_else(|| ProductError::NotFound(format!("ADR {}", adr_id)))?;
-        domains::acknowledge_adr(feature, adr_obj, &reason_str)?
-    } else {
-        return Err(Box::new(ProductError::ConfigError(
-            "must specify --domain or --adr".to_string(),
-        )));
-    };
-
-    let content = parser::render_feature(&updated_front, &feature.body);
-    fileops::write_file_atomic(&feature.path, &content)?;
-    if let Some(ref d) = domain {
-        println!("{} acknowledged domain '{}': {}", id, d, reason_str);
-    } else if let Some(ref a) = adr {
-        println!("{} acknowledged ADR '{}': {}", id, a, reason_str);
-    }
-    Ok(())
-}
-
-pub(crate) fn feature_domain(
-    id: &str,
-    add: Vec<String>,
-    remove: Vec<String>,
-) -> CmdResult {
-    let _lock = acquire_write_lock_typed()?;
-    let (config, _, graph) = load_graph_typed()?;
-    let plan = feat::plan_domain_edit(&config, &graph, id, &add, &remove)?;
-    feat::apply_domain_edit(&plan)?;
-    Ok(Output::text(format!(
-        "{} domains: [{}]",
-        id,
-        plan.final_domains.join(", ")
-    )))
-}
-
-/// FT-062 — `product feature depends-on` adapter. Mirrors the field-edit
-/// pattern: thin wrapper over `plan_depends_on_edit` + `apply_depends_on_edit`.
-pub(crate) fn feature_depends_on(
-    id: &str,
-    add: Vec<String>,
-    remove: Vec<String>,
-) -> CmdResult {
-    let _lock = acquire_write_lock_typed()?;
-    let (_config, _, graph) = load_graph_typed()?;
-    let plan = feat::plan_depends_on_edit(&graph, id, &add, &remove)?;
-    if plan.is_changed() {
-        feat::apply_depends_on_edit(&plan)?;
-    }
-    let json = serde_json::json!({
-        "id": id,
-        "depends_on": plan.final_depends_on,
-        "added": plan.added,
-        "removed": plan.removed,
-        "changed": plan.is_changed(),
-    });
-    let mut text = format!(
-        "{} depends-on: [{}]",
-        id,
-        plan.final_depends_on.join(", ")
-    );
-    if !plan.added.is_empty() {
-        text.push_str(&format!("\n  added: {}", plan.added.join(", ")));
-    }
-    if !plan.removed.is_empty() {
-        text.push_str(&format!("\n  removed: {}", plan.removed.join(", ")));
-    }
-    if !plan.is_changed() {
-        text.push_str("\n  (no changes)");
-    }
-    Ok(Output::both(text, json))
-}
+pub(crate) use super::feature_fields::{
+    feature_acknowledge, feature_depends_on, feature_domain,
+};

@@ -9,7 +9,7 @@ use crate::fileops;
 use crate::graph::KnowledgeGraph;
 use crate::implement::verify as verify_impl;
 use crate::parser;
-use crate::types::{AdrScope, TestStatus, TestType};
+use crate::types::{TestStatus, TestType};
 use std::path::Path;
 
 pub(super) fn run(
@@ -92,8 +92,13 @@ pub(super) fn run(
 
 fn collect_platform_tcs(graph: &KnowledgeGraph) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
+    // FT-067: platform TCs are TCs that validate ANY ADR with scope in
+    // {cross-cutting, platform}. Both meanings are "enforced project-wide";
+    // the difference is whether per-feature attention is also required
+    // (cross-cutting) or whether enforcement happens once at the platform
+    // layer (platform).
     for adr in graph.adrs.values() {
-        if adr.front.scope == AdrScope::CrossCutting {
+        if adr.front.scope.is_platform_wide() {
             for tc in graph.tests.values() {
                 if tc.front.validates.adrs.contains(&adr.front.id)
                     && !out.contains(&tc.front.id)

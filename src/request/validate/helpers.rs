@@ -89,6 +89,7 @@ pub fn check_single_id(
             ArtifactType::Adr => graph.adrs.contains_key(s),
             ArtifactType::Tc => graph.tests.contains_key(s),
             ArtifactType::Dep => graph.dependencies.contains_key(s),
+            ArtifactType::Pattern => graph.patterns.contains_key(s),
         };
         if !exists {
             findings.push(Finding::error(

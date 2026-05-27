@@ -185,9 +185,10 @@ pub fn run_verify_platform(
 ) -> Result<bool> {
     let now = chrono::Utc::now().to_rfc3339();
     let mut platform_tc_ids: Vec<String> = Vec::new();
-    // TCs linked to cross-cutting ADRs (ADR-025).
+    // FT-067: TCs validating ADRs with scope ∈ {cross-cutting, platform}.
+    // Both are enforced project-wide and run as platform TCs.
     for adr in graph.adrs.values() {
-        if adr.front.scope == AdrScope::CrossCutting {
+        if adr.front.scope.is_platform_wide() {
             for tc in graph.tests.values() {
                 if tc.front.validates.adrs.contains(&adr.front.id) && !platform_tc_ids.contains(&tc.front.id) {
                     platform_tc_ids.push(tc.front.id.clone());

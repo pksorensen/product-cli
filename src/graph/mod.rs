@@ -2,11 +2,15 @@
 
 mod algorithms;
 mod dep_validation;
+pub mod full_check;
 pub mod functional_spec_validation;
 mod lifecycle_validation;
 pub mod inference;
 mod model;
+pub mod observability_validation;
 mod ordering;
+pub mod pattern_topo;
+pub mod pattern_validation;
 pub mod planning_validation;
 mod removal_validation;
 pub mod responsibility;

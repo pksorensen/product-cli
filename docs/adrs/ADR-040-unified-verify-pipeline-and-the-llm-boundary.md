@@ -4,6 +4,13 @@ title: Unified Verify Pipeline and the LLM Boundary
 status: accepted
 features:
 - FT-047
+- FT-068
+- FT-070
+- FT-071
+- FT-072
+- FT-073
+- FT-074
+- FT-075
 supersedes: []
 superseded-by: []
 domains:

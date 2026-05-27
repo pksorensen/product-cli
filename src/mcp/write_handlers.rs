@@ -38,6 +38,7 @@ fn new_feature_front(id: String, title: &str, phase: u32) -> crate::types::Featu
         tests: vec![],
         domains: vec![],
         domains_acknowledged: std::collections::HashMap::new(),
+        patterns: vec![],
         due_date: None,
         bundle: None,
     }
@@ -89,15 +90,33 @@ pub(crate) fn handle_test_new(
 ) -> Result<Value, String> {
     let title = args.get("title").and_then(|v| v.as_str()).unwrap_or_default();
     let test_type = args.get("test_type").and_then(|v| v.as_str()).unwrap_or("scenario");
+    // FT-072: accept `observes` as an array of strings.
+    let observes: Vec<String> = match args.get("observes") {
+        Some(Value::Array(arr)) => arr
+            .iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect(),
+        _ => Vec::new(),
+    };
     let existing: Vec<String> = graph.tests.keys().cloned().collect();
     let config = ProductConfig::load_from_root(repo_root)
         .map_err(|e| format!("{}", e))?;
+    for s in &observes {
+        if !crate::tc::is_known_surface(s, &config.tc_observability) {
+            return Err(format!(
+                "E026: unknown observes surface '{}' (allowed: {})",
+                s,
+                crate::tc::surface_hint(&config.tc_observability),
+            ));
+        }
+    }
     let id = crate::parser::next_id(&config.prefixes.test, &existing);
     let filename = crate::parser::id_to_filename(&id, title);
     let dir = config.resolve_path(repo_root, &config.paths.tests);
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}", e))?;
     let path = dir.join(&filename);
-    let front = new_test_front(id.clone(), title, test_type);
+    let mut front = new_test_front(id.clone(), title, test_type);
+    front.observes = observes;
     let body = "## Description\n\n[Describe test here.]\n".to_string();
     let content = crate::parser::render_test(&front, &body);
     crate::fileops::write_file_atomic(&path, &content).map_err(|e| format!("{}", e))?;
@@ -122,6 +141,7 @@ fn new_test_front(
         runner_args: None,
         runner_timeout: None,
         requires: vec![],
+        observes: vec![],
         last_run: None,
         failure_message: None,
         last_run_duration: None,
@@ -141,8 +161,9 @@ pub(crate) fn handle_feature_link(args: &Value, graph: &KnowledgeGraph) -> Resul
 
     let adr = args.get("adr").and_then(|v| v.as_str());
     let test = args.get("test").and_then(|v| v.as_str());
+    let pattern = args.get("pattern").and_then(|v| v.as_str());
 
-    let plan = crate::feature::plan_link(graph, id, adr, test)
+    let plan = crate::feature::plan_link_with_pattern(graph, id, adr, test, pattern)
         .map_err(|e| format!("{}", e))?;
     crate::feature::apply_link(&plan).map_err(|e| format!("{}", e))?;
 
@@ -189,11 +210,20 @@ fn build_link_response(id: &str, plan: &crate::feature::LinkPlan) -> Value {
         .iter()
         .map(|r| serde_json::json!({"id": r.id, "field": r.field}))
         .collect();
-    serde_json::json!({
+    let warnings_json: Vec<Value> = plan
+        .warnings
+        .iter()
+        .map(|w| serde_json::json!({"code": w.code, "message": w.message}))
+        .collect();
+    let mut resp = serde_json::json!({
         "id": id,
         "writes": writes_json,
         "reciprocated": reciprocated_json,
-    })
+    });
+    if !warnings_json.is_empty() {
+        resp["warnings"] = Value::Array(warnings_json);
+    }
+    resp
 }
 
 /// FT-066: `product_feature_status` writes the requested status to disk via

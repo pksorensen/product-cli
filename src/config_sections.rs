@@ -131,6 +131,9 @@ pub struct PrefixConfig {
     pub test: String,
     #[serde(default = "default_dep_prefix")]
     pub dependency: String,
+    /// Pattern artifact prefix (FT-070, ADR-050). Default `PAT`.
+    #[serde(default = "default_pattern_prefix")]
+    pub pattern: String,
 }
 
 impl Default for PrefixConfig {
@@ -140,6 +143,7 @@ impl Default for PrefixConfig {
             adr: default_adr_prefix(),
             test: default_test_prefix(),
             dependency: default_dep_prefix(),
+            pattern: default_pattern_prefix(),
         }
     }
 }
@@ -184,4 +188,8 @@ fn default_test_prefix() -> String {
 
 fn default_dep_prefix() -> String {
     "DEP".into()
+}
+
+fn default_pattern_prefix() -> String {
+    "PAT".into()
 }

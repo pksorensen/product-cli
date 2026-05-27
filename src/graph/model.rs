@@ -32,6 +32,16 @@ pub enum EdgeType {
     DependsOn,       // Feature -> Feature
     Uses,            // Feature -> Dependency (ADR-030)
     Governs,         // ADR -> Dependency (ADR-030)
+    /// Feature cites a pattern (FT-070, ADR-050). Materialised bidirectionally
+    /// with `Exemplifies`.
+    UsesPattern,     // Feature -> Pattern
+    /// Pattern requires another pattern (FT-071, ADR-050). Forms a DAG;
+    /// validated for cycles by `pattern_topo::detect_any_cycle`.
+    Requires,        // Pattern -> Pattern
+    /// ADR operationalised by a pattern (FT-070, ADR-050).
+    OperationalisedBy, // ADR -> Pattern (pattern operationalises ADR)
+    /// Pattern's worked-example feature (FT-070, ADR-050).
+    Exemplifies,     // Pattern -> Feature
 }
 
 #[derive(Debug, Clone)]
@@ -48,6 +58,8 @@ pub struct KnowledgeGraph {
     pub adrs: HashMap<String, Adr>,
     pub tests: HashMap<String, TestCriterion>,
     pub dependencies: HashMap<String, crate::types::Dependency>,
+    /// Pattern artifacts (FT-070, ADR-050). Keyed by PAT id.
+    pub patterns: HashMap<String, crate::types::Pattern>,
     pub edges: Vec<Edge>,
     // Adjacency lists
     pub forward: HashMap<String, Vec<(String, EdgeType)>>,
@@ -75,11 +87,23 @@ impl KnowledgeGraph {
         tests: Vec<TestCriterion>,
         deps: Vec<crate::types::Dependency>,
     ) -> Self {
+        Self::build_full(features, adrs, tests, deps, Vec::new())
+    }
+
+    /// Build graph from every artifact type, including patterns (FT-070).
+    pub fn build_full(
+        features: Vec<Feature>,
+        adrs: Vec<Adr>,
+        tests: Vec<TestCriterion>,
+        deps: Vec<crate::types::Dependency>,
+        patterns: Vec<crate::types::Pattern>,
+    ) -> Self {
         let mut graph = Self {
             features: HashMap::new(),
             adrs: HashMap::new(),
             tests: HashMap::new(),
             dependencies: HashMap::new(),
+            patterns: HashMap::new(),
             edges: Vec::new(),
             forward: HashMap::new(),
             reverse: HashMap::new(),
@@ -106,6 +130,10 @@ impl KnowledgeGraph {
             id_paths.entry(d.front.id.clone()).or_default().push(d.path.clone());
             graph.dependencies.insert(d.front.id.clone(), d);
         }
+        for p in patterns {
+            id_paths.entry(p.front.id.clone()).or_default().push(p.path.clone());
+            graph.patterns.insert(p.front.id.clone(), p);
+        }
 
         // Record any IDs that appear in more than one file
         for (id, paths) in id_paths {
@@ -127,6 +155,27 @@ impl KnowledgeGraph {
             }
             for dep_id in &f.front.depends_on {
                 pending_edges.push((f.front.id.clone(), dep_id.clone(), EdgeType::DependsOn));
+            }
+            // FT-070 / FT-071: feature → pattern (UsesPattern) materialised
+            // bidirectionally with pattern.examples (Exemplifies).
+            for pat_id in &f.front.patterns {
+                pending_edges.push((f.front.id.clone(), pat_id.clone(), EdgeType::UsesPattern));
+            }
+        }
+
+        // FT-071: pattern → pattern (Requires) and pattern ↔ ADR / feature
+        // edges so context, impact, and centrality include patterns.
+        for p in graph.patterns.values() {
+            for req in &p.front.requires {
+                pending_edges.push((p.front.id.clone(), req.clone(), EdgeType::Requires));
+            }
+            for adr_id in &p.front.adrs {
+                // ADR → Pattern: the ADR is operationalised by the pattern.
+                pending_edges
+                    .push((adr_id.clone(), p.front.id.clone(), EdgeType::OperationalisedBy));
+            }
+            for ex_id in &p.front.examples {
+                pending_edges.push((p.front.id.clone(), ex_id.clone(), EdgeType::Exemplifies));
             }
         }
 
@@ -195,6 +244,29 @@ impl KnowledgeGraph {
         ids.extend(self.adrs.keys().cloned());
         ids.extend(self.tests.keys().cloned());
         ids.extend(self.dependencies.keys().cloned());
+        ids.extend(self.patterns.keys().cloned());
         ids
+    }
+
+    /// Detect a cycle in the ADR `supersedes` chain. Returns the cycle as a
+    /// node list, or `None` when none exists.
+    pub fn detect_supersession_cycle(&self) -> Option<Vec<String>> {
+        for adr in self.adrs.values() {
+            let mut visited = HashSet::new();
+            let mut current = adr.front.id.clone();
+            visited.insert(current.clone());
+            while let Some(a) = self.adrs.get(&current) {
+                if let Some(next) = a.front.supersedes.first() {
+                    if visited.contains(next) {
+                        return Some(visited.into_iter().collect());
+                    }
+                    visited.insert(next.clone());
+                    current = next.clone();
+                } else {
+                    break;
+                }
+            }
+        }
+        None
     }
 }

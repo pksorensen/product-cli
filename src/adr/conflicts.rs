@@ -2,7 +2,7 @@
 
 use crate::error::ProductError;
 use crate::graph::KnowledgeGraph;
-use crate::types::{Adr, AdrScope};
+use crate::types::Adr;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -132,14 +132,17 @@ fn check_domain_overlap(
     graph: &KnowledgeGraph,
     findings: &mut Vec<ConflictFinding>,
 ) {
-    if adr.front.scope == AdrScope::CrossCutting {
+    // FT-067: platform-wide ADRs (cross-cutting OR platform) are themselves
+    // the enforcement layer; they don't overlap with each other in the W026
+    // sense and need no overlap warning.
+    if adr.front.scope.is_platform_wide() {
         return;
     }
     for other in graph.adrs.values() {
         if other.front.id == adr_id {
             continue;
         }
-        if other.front.scope != AdrScope::CrossCutting {
+        if !other.front.scope.is_platform_wide() {
             continue;
         }
         let overlap: Vec<&String> = adr
@@ -154,7 +157,7 @@ fn check_domain_overlap(
                 code: FindingCode::W026,
                 adr: adr_id.to_string(),
                 message: format!(
-                    "domain overlap with cross-cutting ADR {}: {}",
+                    "domain overlap with platform-wide ADR {}: {}",
                     other.front.id,
                     overlap_str.join(", ")
                 ),
@@ -164,13 +167,19 @@ fn check_domain_overlap(
 }
 
 fn check_scope_consistency(adr_id: &str, adr: &Adr, findings: &mut Vec<ConflictFinding>) {
-    if adr.front.scope == AdrScope::CrossCutting && !adr.front.features.is_empty() {
+    // FT-067: same scope-vs-feature-links check applies to both cross-cutting
+    // and platform ADRs. Neither should list specific features in their
+    // `features:` array — cross-cutting applies to all features (per-feature
+    // attention), platform is enforced by the substrate (no feature link).
+    if adr.front.scope.is_platform_wide() && !adr.front.features.is_empty() {
         findings.push(ConflictFinding {
             code: FindingCode::W027,
             adr: adr_id.to_string(),
             message: format!(
-                "cross-cutting ADR has {} feature link(s) — usually cross-cutting ADRs don't list specific features",
-                adr.front.features.len()
+                "{}-scope ADR has {} feature link(s) — usually {}-scope ADRs don't list specific features",
+                adr.front.scope,
+                adr.front.features.len(),
+                adr.front.scope,
             ),
         });
     }

@@ -4,6 +4,14 @@ title: Functional Specification Lives in Feature Body, Not a Separate Artifact
 status: accepted
 features:
 - FT-055
+- FT-068
+- FT-069
+- FT-070
+- FT-071
+- FT-072
+- FT-073
+- FT-074
+- FT-075
 supersedes: []
 superseded-by: []
 domains:

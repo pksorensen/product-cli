@@ -1,7 +1,7 @@
 //! Graph operations: check, rebuild, query, stats, centrality, autolink, coverage, infer.
 
 use clap::Subcommand;
-use product_lib::{context::summary as bundle_summary, domains, graph::{inference, responsibility}, rdf};
+use product_lib::{context::summary as bundle_summary, domains, graph::inference, rdf};
 use std::process;
 
 use super::graph_autolink::graph_autolink;
@@ -23,6 +23,13 @@ pub enum GraphCommands {
         /// Show all ADRs
         #[arg(long)]
         all: bool,
+        /// Include named artifact kinds in the centrality ranking
+        /// (FT-071). Currently the only supported value is `patterns`,
+        /// which surfaces PAT ids alongside ADR ids in the result.
+        /// Without this flag the algorithm preserves the pre-FT-071
+        /// ADR-only ranking (ADR-050 backwards-compat invariant).
+        #[arg(long = "include", value_name = "KIND")]
+        include: Option<String>,
     },
     /// Validate all links and report errors/warnings
     Check {
@@ -65,7 +72,7 @@ pub enum GraphCommands {
 pub(crate) fn handle_graph(cmd: GraphCommands, global_format: &str) -> BoxResult {
     match cmd {
         GraphCommands::Autolink { dry_run } => graph_autolink(dry_run),
-        GraphCommands::Central { top, all } => graph_central(top, all),
+        GraphCommands::Central { top, all, include } => graph_central(top, all, include),
         GraphCommands::Check { format } => graph_check(format, global_format),
         GraphCommands::Coverage { domain, format } => graph_coverage(domain, format, global_format),
         GraphCommands::Infer { dry_run, adr, feature } => graph_infer(dry_run, adr, feature),
@@ -77,20 +84,11 @@ pub(crate) fn handle_graph(cmd: GraphCommands, global_format: &str) -> BoxResult
 
 fn graph_check(format: Option<String>, global_format: &str) -> BoxResult {
     let (config, root, graph) = load_graph()?;
-    let mut result = graph.check_with_config(Some(&config));
-    domains::validate_domains(&graph, &config.domains, &mut result.errors, &mut result.warnings);
-    responsibility::check_responsibility(&graph, config.responsibility(), &mut result);
-    // FT-053 / ADR-045 — W028 (due-date passed) and W029 (approaching).
-    let today = chrono::Local::now().date_naive();
-    product_lib::graph::planning_validation::check_due_dates(
-        &graph, &config.planning, today, &mut result,
-    );
+    // FT-069: route all validation through the shared `full_check::run`
+    // so the MCP `product_graph_check` tool produces a byte-identical
+    // envelope on the same fixture (ADR-020 parity invariant).
+    let result = product_lib::graph::full_check::run(&graph, &config, &root);
     for w in config.validate_product_section() { eprintln!("{}", w); }
-
-    // FT-042, ADR-039 decision 10: wire log verification into graph check.
-    if config.log.verify_on_check {
-        append_log_findings_to_check(&config, &root, &mut result);
-    }
 
     let fmt = format.as_deref().unwrap_or(global_format);
 
@@ -110,39 +108,6 @@ fn graph_check(format: Option<String>, global_format: &str) -> BoxResult {
         process::exit(code);
     }
     Ok(())
-}
-
-/// FT-042: append log-verification findings to the graph check result.
-fn append_log_findings_to_check(
-    config: &product_lib::config::ProductConfig,
-    root: &std::path::Path,
-    result: &mut product_lib::error::CheckResult,
-) {
-    use product_lib::error::Diagnostic;
-    use product_lib::request_log::{log_path, verify::{verify_log, Severity, VerifyOptions}};
-
-    let lp = log_path(root, Some(&config.paths.requests));
-    if !lp.exists() {
-        return;
-    }
-    let outcome = verify_log(&lp, root, &VerifyOptions::default());
-    for f in outcome.findings {
-        let mut diag = match f.severity {
-            Severity::Error => Diagnostic::error(&f.code, &f.message),
-            Severity::Warning => Diagnostic::warning(&f.code, &f.message),
-        };
-        diag = diag.with_file(lp.clone());
-        if let Some(line) = f.line {
-            diag = diag.with_line(line);
-        }
-        if let Some(detail) = f.detail {
-            diag = diag.with_detail(&detail);
-        }
-        match f.severity {
-            Severity::Error => result.errors.push(diag),
-            Severity::Warning => result.warnings.push(diag),
-        }
-    }
 }
 
 fn graph_rebuild() -> BoxResult {
@@ -249,32 +214,65 @@ fn print_centrality_summary(stats: &product_lib::graph::GraphStats) {
     }
 }
 
-fn graph_central(top: usize, all: bool) -> BoxResult {
+fn graph_central(top: usize, all: bool, include: Option<String>) -> BoxResult {
     let (_, _, graph) = load_graph()?;
-    let centrality = graph.betweenness_centrality();
-    let mut adr_centrality: Vec<(String, f64)> = graph
-        .adrs
-        .keys()
-        .map(|id| (id.clone(), centrality.get(id).copied().unwrap_or(0.0)))
-        .collect();
-    adr_centrality
-        .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-
-    let limit = if all { adr_centrality.len() } else { top.min(adr_centrality.len()) };
-    println!(
-        "{:<6} {:<10} {:<12} TITLE",
-        "RANK", "ID", "CENTRALITY"
-    );
-    println!("{}", "-".repeat(60));
-    for (i, (id, c)) in adr_centrality.iter().take(limit).enumerate() {
-        let title = graph
-            .adrs
-            .get(id)
-            .map(|a| a.front.title.as_str())
-            .unwrap_or("");
-        println!("{:<6} {:<10} {:<12.3} {}", i + 1, id, c, title);
-    }
+    let include_patterns = matches!(include.as_deref(), Some("patterns"));
+    let centrality = graph.betweenness_centrality_with(include_patterns);
+    let ranking = build_central_ranking(&graph, &centrality, include_patterns);
+    let limit = if all { ranking.len() } else { top.min(ranking.len()) };
+    print_central_ranking(&ranking, limit, include_patterns);
     Ok(())
+}
+
+fn build_central_ranking<'a>(
+    graph: &'a product_lib::graph::KnowledgeGraph,
+    centrality: &std::collections::HashMap<String, f64>,
+    include_patterns: bool,
+) -> Vec<(String, f64, &'a str, &'a str)> {
+    let mut ranking: Vec<(String, f64, &str, &str)> = graph
+        .adrs
+        .values()
+        .map(|a| {
+            (
+                a.front.id.clone(),
+                centrality.get(&a.front.id).copied().unwrap_or(0.0),
+                "ADR",
+                a.front.title.as_str(),
+            )
+        })
+        .collect();
+    if include_patterns {
+        for p in graph.patterns.values() {
+            ranking.push((
+                p.front.id.clone(),
+                centrality.get(&p.front.id).copied().unwrap_or(0.0),
+                "PAT",
+                p.front.title.as_str(),
+            ));
+        }
+    }
+    ranking.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+    ranking
+}
+
+fn print_central_ranking(
+    ranking: &[(String, f64, &str, &str)],
+    limit: usize,
+    include_patterns: bool,
+) {
+    if include_patterns {
+        println!("{:<6} {:<10} {:<6} {:<12} TITLE", "RANK", "ID", "KIND", "CENTRALITY");
+    } else {
+        println!("{:<6} {:<10} {:<12} TITLE", "RANK", "ID", "CENTRALITY");
+    }
+    println!("{}", "-".repeat(60));
+    for (i, (id, c, kind, title)) in ranking.iter().take(limit).enumerate() {
+        if include_patterns {
+            println!("{:<6} {:<10} {:<6} {:<12.3} {}", i + 1, id, kind, c, title);
+        } else {
+            println!("{:<6} {:<10} {:<12.3} {}", i + 1, id, c, title);
+        }
+    }
 }
 
 fn graph_infer(dry_run: bool, adr: Option<String>, feature: Option<String>) -> BoxResult {

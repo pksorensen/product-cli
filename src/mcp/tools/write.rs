@@ -10,8 +10,62 @@ pub(super) fn all() -> Vec<ToolDef> {
     tools.extend(field_test_tools());
     tools.extend(status_tools());
     tools.extend(adr_lifecycle_tools());
+    tools.extend(pattern_tools());
     tools.extend(request_tools());
     tools
+}
+
+// Pattern lifecycle tools (FT-070, ADR-050)
+fn pattern_tools() -> Vec<ToolDef> {
+    vec![pattern_new_tool(), pattern_status_tool(), pattern_link_tool()]
+}
+
+fn pattern_new_tool() -> ToolDef {
+    ToolDef {
+        name: "product_pattern_new".to_string(),
+        description: "Scaffold a new pattern file under `[paths].patterns` with the configured H2 sections (FT-070).".to_string(),
+        requires_write: true,
+        input_schema: serde_json::json!({
+            "type": "object",
+            "properties": {"title": {"type": "string"}},
+            "required": ["title"]
+        }),
+    }
+}
+
+fn pattern_status_tool() -> ToolDef {
+    ToolDef {
+        name: "product_pattern_status".to_string(),
+        description: "Transition a pattern between `live` and `deprecated`. When deprecating, optionally name the successor with `deprecated_by`.".to_string(),
+        requires_write: true,
+        input_schema: serde_json::json!({
+            "type": "object",
+            "properties": {
+                "id": {"type": "string"},
+                "status": {"type": "string", "enum": ["live", "deprecated"]},
+                "deprecated_by": {"type": "string"}
+            },
+            "required": ["id", "status"]
+        }),
+    }
+}
+
+fn pattern_link_tool() -> ToolDef {
+    ToolDef {
+        name: "product_pattern_link".to_string(),
+        description: "Link the pattern to an ADR, a prerequisite pattern (requires cycle check), or an example feature (bidirectional materialisation per ADR-050).".to_string(),
+        requires_write: true,
+        input_schema: serde_json::json!({
+            "type": "object",
+            "properties": {
+                "id": {"type": "string"},
+                "adr": {"type": "string"},
+                "requires": {"type": "string"},
+                "example": {"type": "string"}
+            },
+            "required": ["id"]
+        }),
+    }
 }
 
 // Write tools: creating new artifacts
@@ -46,16 +100,28 @@ fn adr_new_tool() -> ToolDef {
 fn test_new_tool() -> ToolDef {
     ToolDef {
         name: "product_test_new".to_string(),
-        description: "Create a new test criterion file".to_string(),
+        description: "Create a new test criterion file. The optional `observes` array names the surface(s) the TC asserts against (FT-072, ADR-051).".to_string(),
         requires_write: true,
-        input_schema: serde_json::json!({"type": "object", "properties": {"title": {"type": "string"}, "test_type": {"type": "string", "default": "scenario"}}, "required": ["title"]}),
+        input_schema: serde_json::json!({
+            "type": "object",
+            "properties": {
+                "title": {"type": "string"},
+                "test_type": {"type": "string", "default": "scenario"},
+                "observes": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Observed surfaces (FT-072). Allowed: file, graph, exit-code, tag, stdout, stderr, disk-state, mcp-response (extensible via [tc-observability].custom)."
+                }
+            },
+            "required": ["title"]
+        }),
     }
 }
 
 fn feature_link_tool() -> ToolDef {
     ToolDef {
         name: "product_feature_link".to_string(),
-        description: "Link a feature to an ADR, test, dependency, or another feature (depends-on). Pass 'feature' for the lightweight one-shot depends-on add — the dedicated product_feature_depends_on tool is preferred for batch add/remove.".to_string(),
+        description: "Link a feature to an ADR, test, dependency, another feature (depends-on), or a pattern (FT-073). Pattern citation is bidirectional with `pattern.examples` (ADR-050).".to_string(),
         requires_write: true,
         input_schema: serde_json::json!({
             "type": "object",
@@ -64,7 +130,8 @@ fn feature_link_tool() -> ToolDef {
                 "adr": {"type": "string"},
                 "test": {"type": "string"},
                 "dep": {"type": "string"},
-                "feature": {"type": "string", "description": "Feature ID to add to depends-on. Cycle-checked. Idempotent."}
+                "feature": {"type": "string", "description": "Feature ID to add to depends-on. Cycle-checked. Idempotent."},
+                "pattern": {"type": "string", "description": "Pattern ID (PAT-XXX). Bidirectional with pattern.examples (FT-073, ADR-050)."}
             },
             "required": ["id"]
         }),
@@ -135,13 +202,13 @@ fn field_adr_tools() -> Vec<ToolDef> {
     vec![
         ToolDef {
             name: "product_adr_scope".to_string(),
-            description: "Set ADR scope: cross-cutting, domain, or feature-specific.".to_string(),
+            description: "Set ADR scope: cross-cutting, platform, domain, or feature-specific.".to_string(),
             requires_write: true,
             input_schema: serde_json::json!({
                 "type": "object",
                 "properties": {
                     "id": {"type": "string"},
-                    "scope": {"type": "string", "enum": ["cross-cutting", "domain", "feature-specific"]}
+                    "scope": {"type": "string", "enum": ["cross-cutting", "platform", "domain", "feature-specific"]}
                 }, "required": ["id", "scope"]
             }),
         },

@@ -46,6 +46,7 @@ pub fn execute_plan(
             tests: vec![],
             domains: vec![],
             domains_acknowledged: std::collections::HashMap::new(),
+            patterns: vec![],
             due_date: None,
             bundle: None,
         };
@@ -125,6 +126,7 @@ pub fn execute_plan(
             runner_args: None,
             runner_timeout: None,
             requires: vec![],
+            observes: vec![],
             last_run: None,
             failure_message: None,
             last_run_duration: None,

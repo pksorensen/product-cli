@@ -5,8 +5,8 @@ use clap::Command as ClapCommand;
 use super::{
     adr, agent_init, author, checklist, completions, context, cycle_times, dep, drift, feature,
     gap, graph_cmd, hash, hooks, implement, init, mcp_cmd, metrics_cmd, migrate, onboard,
-    preflight, prompts_cmd, render, request_cmd, schema, status, tags, test_cmd, BoxResult,
-    Commands,
+    pattern, preflight, prompts_cmd, render, request_cmd, schema, status, tags, test_cmd,
+    BoxResult, Commands,
 };
 
 pub(crate) fn dispatch(command: Commands, fmt: &str, cli_command: &mut ClapCommand) -> BoxResult {
@@ -33,6 +33,7 @@ pub(crate) fn dispatch(command: Commands, fmt: &str, cli_command: &mut ClapComma
         Commands::Metrics { command } => metrics_cmd::handle_metrics(command),
         Commands::Migrate { command } => migrate::handle_migrate(command),
         Commands::Onboard { command } => onboard::handle_onboard(command),
+        Commands::Pattern { command } => pattern::handle_pattern(command, fmt),
         Commands::Preflight { id } => preflight::handle_preflight(&id),
         Commands::Prompts { command } => prompts_cmd::handle_prompts(command),
         Commands::Request { command } => request_cmd::handle_request(command, fmt),
@@ -101,10 +102,25 @@ fn dispatch_forecast(command: Commands, fmt: &str) -> BoxResult {
 }
 
 fn dispatch_implement(command: Commands) -> BoxResult {
-    let Commands::Implement { id, dry_run, no_verify, headless } = command else {
+    let Commands::Implement {
+        id,
+        dry_run,
+        no_verify,
+        headless,
+        no_auto_runners,
+        target,
+    } = command
+    else {
         unreachable!("dispatch_implement called with non-Implement variant")
     };
-    implement::handle_implement(&id, dry_run, no_verify, headless)
+    implement::handle_implement(
+        &id,
+        dry_run,
+        no_verify,
+        headless,
+        no_auto_runners,
+        target.as_deref(),
+    )
 }
 
 fn dispatch_init(command: Commands) -> BoxResult {

@@ -59,6 +59,7 @@ pub const TC_FIELDS: &[&str] = &[
     "runner-args",
     "runner-timeout",
     "requires",
+    "observes",
     "last-run",
     "failure-message",
     "last-run-duration",
@@ -80,6 +81,18 @@ pub const DEP_FIELDS: &[&str] = &[
     "supersedes",
 ];
 
+/// Recognised front-matter field names on a pattern artifact (FT-070).
+pub const PATTERN_FIELDS: &[&str] = &[
+    "id",
+    "title",
+    "status",
+    "domains",
+    "adrs",
+    "requires",
+    "examples",
+    "deprecated-by",
+];
+
 /// Resolve the artifact type label string ("feature", "adr", "tc", "dep") to
 /// its known-fields slice. Any other label returns `&[]`.
 pub fn known_fields_for_label(label: &str) -> &'static [&'static str] {
@@ -88,6 +101,7 @@ pub fn known_fields_for_label(label: &str) -> &'static [&'static str] {
         "adr" => ADR_FIELDS,
         "tc" => TC_FIELDS,
         "dep" => DEP_FIELDS,
+        "pattern" => PATTERN_FIELDS,
         _ => &[],
     }
 }
@@ -99,6 +113,7 @@ pub fn known_fields_for(t: ArtifactType) -> &'static [&'static str] {
         ArtifactType::Adr => ADR_FIELDS,
         ArtifactType::Tc => TC_FIELDS,
         ArtifactType::Dep => DEP_FIELDS,
+        ArtifactType::Pattern => PATTERN_FIELDS,
     }
 }
 

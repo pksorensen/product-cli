@@ -48,6 +48,7 @@ bundle:              # Optional. Written by `product context --measure`
   depth-1-adrs: Integer
   tcs: Integer
   domains: [String]
+  patterns: Integer    # FT-071: count of patterns included in the bundle
   tokens-approx: Integer
   measured-at: String  # ISO 8601 timestamp
 ```"#,
@@ -101,7 +102,7 @@ features: [String]     # Default: []. Feature IDs this ADR implements
 supersedes: [String]   # Default: []. ADR IDs this decision supersedes
 superseded-by: [String] # Default: []. ADR IDs that supersede this decision
 domains: [String]      # Default: []. Concern domains this ADR governs
-scope: Enum            # Default: feature-specific. Values: cross-cutting, domain, feature-specific
+scope: Enum            # Default: feature-specific. Values: cross-cutting, platform, domain, feature-specific
 content-hash: String   # Optional. SHA-256 hash for immutability enforcement
 amendments:            # Default: []. Audit trail for approved changes
   - date: String       # ISO 8601 date
@@ -148,6 +149,8 @@ runner: String       # Optional. Test runner name (e.g. cargo-test)
 runner-args: String  # Optional. Arguments for the test runner
 runner-timeout: Integer # Optional. Timeout in seconds
 requires: [String]   # Default: []. TC IDs that must pass before this TC
+observes: [String]   # Default: []. Asserted surfaces (ADR-051). Required for
+                     # scenario/session/smoke/contract at phase >= threshold.
 last-run: String     # Optional. ISO 8601 timestamp of last run
 failure-message: String # Optional. Last failure message
 last-run-duration: Float # Optional. Last run duration in seconds

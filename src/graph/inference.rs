@@ -7,7 +7,6 @@
 
 use crate::error::ProductError;
 use crate::parser;
-use crate::types::AdrScope;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -81,7 +80,11 @@ pub fn compute_inference(graph: &KnowledgeGraph, opts: &InferenceOptions) -> Inf
         if let Some(ref filter) = opts.adr_filter {
             if adr.front.id != *filter { continue; }
         }
-        if opts.skip_cross_cutting && adr.front.scope == AdrScope::CrossCutting {
+        // FT-067: skip platform-wide ADRs (cross-cutting OR platform). The
+        // original concept name is `skip_cross_cutting` for API stability, but
+        // the predicate widened to cover platform too — both would otherwise
+        // link TCs to every feature touching the ADR, which is noise.
+        if opts.skip_cross_cutting && adr.front.scope.is_platform_wide() {
             if !skipped_cross_cutting.contains(&adr.front.id) {
                 skipped_cross_cutting.push(adr.front.id.clone());
             }

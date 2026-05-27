@@ -52,6 +52,23 @@ impl KnowledgeGraph {
             );
             result.errors.extend(findings.errors);
             result.warnings.extend(findings.warnings);
+            // FT-071 / ADR-050 — E031 requires-cycle, W032 deprecated-cited,
+            // W033 pattern body missing section.
+            super::pattern_validation::check_all(self, &cfg.patterns, &mut result);
+            // FT-073 / ADR-050 — W035 in-progress feature without patterns
+            // (advisory; opt-in via [features].patterns-required-severity).
+            super::pattern_validation::check_patterns_required(
+                self,
+                &cfg.features,
+                &mut result,
+            );
+            // FT-072 / ADR-051 — E032 missing observes, W034 body lacks
+            // reference, E026 unknown surface.
+            super::observability_validation::check(
+                self.tests.values(),
+                &cfg.tc_observability,
+                &mut result,
+            );
         }
         result
     }
@@ -376,24 +393,5 @@ impl KnowledgeGraph {
         result.warnings.extend(hash_result.warnings);
     }
 
-    pub fn detect_supersession_cycle(&self) -> Option<Vec<String>> {
-        for adr in self.adrs.values() {
-            let mut visited = std::collections::HashSet::new();
-            let mut current = adr.front.id.clone();
-            visited.insert(current.clone());
-            while let Some(a) = self.adrs.get(&current) {
-                if let Some(next) = a.front.supersedes.first() {
-                    if visited.contains(next) {
-                        return Some(visited.into_iter().collect());
-                    }
-                    visited.insert(next.clone());
-                    current = next.clone();
-                } else {
-                    break;
-                }
-            }
-        }
-        None
-    }
 }
 

@@ -130,6 +130,7 @@ mod tests {
                 tests: vec![],
                 domains: vec![],
                 domains_acknowledged: Default::default(),
+                patterns: vec![],
                 due_date: None,
                 bundle: None,
             },

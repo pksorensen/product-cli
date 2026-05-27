@@ -15,6 +15,11 @@ pub struct PreflightResult {
     pub feature_domains: Vec<String>,
     pub cross_cutting_gaps: Vec<CrossCuttingGap>,
     pub domain_gaps: Vec<DomainGap>,
+    /// FT-067: platform-scoped ADRs surfaced as informational only. They never
+    /// contribute to the gap count or affect the exit code; this list is
+    /// rendered as a *Platform Invariants* section so authors can still see
+    /// which platform invariants exist for the repo.
+    pub platform_invariants: Vec<PlatformInvariant>,
     pub is_clean: bool,
 }
 
@@ -24,6 +29,16 @@ pub struct CrossCuttingGap {
     pub adr_title: String,
     pub adr_domains: Vec<String>,
     pub status: CoverageStatus,
+}
+
+/// FT-067: informational record for a platform-scoped ADR. Carries no
+/// `status` enum — the status is always "informational, enforced by the
+/// platform itself."
+#[derive(Debug)]
+pub struct PlatformInvariant {
+    pub adr_id: String,
+    pub adr_title: String,
+    pub adr_domains: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -63,32 +78,48 @@ pub fn preflight(
 
     let mut cross_cutting_gaps = Vec::new();
     let mut domain_gaps = Vec::new();
+    let mut platform_invariants = Vec::new();
 
-    // Check all cross-cutting ADRs
+    // Check all cross-cutting ADRs (per-feature attention required) and collect
+    // platform ADRs into the informational section (FT-067).
     for adr in graph.adrs.values() {
-        if adr.front.scope != AdrScope::CrossCutting {
-            continue;
+        match adr.front.scope {
+            AdrScope::CrossCutting => {
+                let status = if feature.front.adrs.contains(&adr.front.id) {
+                    CoverageStatus::Linked
+                } else if let Some(reason) =
+                    find_acknowledgement(feature, &adr.front.id, &adr.front.domains)
+                {
+                    CoverageStatus::Acknowledged(reason)
+                } else {
+                    CoverageStatus::Gap
+                };
+                cross_cutting_gaps.push(CrossCuttingGap {
+                    adr_id: adr.front.id.clone(),
+                    adr_title: adr.front.title.clone(),
+                    adr_domains: adr.front.domains.clone(),
+                    status,
+                });
+            }
+            AdrScope::Platform => {
+                platform_invariants.push(PlatformInvariant {
+                    adr_id: adr.front.id.clone(),
+                    adr_title: adr.front.title.clone(),
+                    adr_domains: adr.front.domains.clone(),
+                });
+            }
+            _ => {}
         }
-        let status = if feature.front.adrs.contains(&adr.front.id) {
-            CoverageStatus::Linked
-        } else if let Some(reason) = find_acknowledgement(feature, &adr.front.id, &adr.front.domains) {
-            CoverageStatus::Acknowledged(reason)
-        } else {
-            CoverageStatus::Gap
-        };
-        cross_cutting_gaps.push(CrossCuttingGap {
-            adr_id: adr.front.id.clone(),
-            adr_title: adr.front.title.clone(),
-            adr_domains: adr.front.domains.clone(),
-            status,
-        });
     }
 
-    // Check domain coverage for each domain the feature declares
+    // Check domain coverage for each domain the feature declares. Both
+    // CrossCutting and Platform scopes are excluded from the per-domain gap
+    // computation — Platform ADRs are enforced project-wide, not per-feature,
+    // and CrossCutting ADRs are already reported separately.
     let centrality = graph.betweenness_centrality();
     for domain in &feature.front.domains {
         let domain_adrs: Vec<&Adr> = graph.adrs.values()
-            .filter(|a| a.front.domains.contains(domain) && a.front.scope != AdrScope::CrossCutting)
+            .filter(|a| a.front.domains.contains(domain) && !a.front.scope.is_platform_wide())
             .collect();
 
         if domain_adrs.is_empty() {
@@ -124,11 +155,15 @@ pub fn preflight(
     let is_clean = cross_cutting_gaps.iter().all(|g| g.status != CoverageStatus::Gap)
         && domain_gaps.iter().all(|g| g.status != CoverageStatus::Gap);
 
+    // Platform invariants are stable ordering for deterministic output.
+    platform_invariants.sort_by(|a, b| a.adr_id.cmp(&b.adr_id));
+
     Ok(PreflightResult {
         feature_id: feature_id.to_string(),
         feature_domains: feature.front.domains.clone(),
         cross_cutting_gaps,
         domain_gaps,
+        platform_invariants,
         is_clean,
     })
 }
@@ -191,10 +226,27 @@ pub fn render_preflight(result: &PreflightResult) -> String {
     out.push('\n');
 
     render_cross_cutting_section(&mut out, &result.cross_cutting_gaps);
+    render_platform_invariants_section(&mut out, &result.platform_invariants);
     render_domain_section(&mut out, &result.domain_gaps);
     render_summary_line(&mut out, result);
 
     out
+}
+
+/// FT-067: render the informational *Platform Invariants* section. One line
+/// per ADR, no status symbol, no failure semantics.
+fn render_platform_invariants_section(out: &mut String, invariants: &[PlatformInvariant]) {
+    if invariants.is_empty() {
+        return;
+    }
+    out.push_str("Platform Invariants:\n");
+    for inv in invariants {
+        out.push_str(&format!(
+            "    \u{2022}  {:<10} {}\n",
+            inv.adr_id, inv.adr_title
+        ));
+    }
+    out.push('\n');
 }
 
 /// Render the cross-cutting ADRs section.

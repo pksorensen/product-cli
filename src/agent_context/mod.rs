@@ -161,6 +161,28 @@ fn generate_tool_guide_section() -> String {
 | `product_drift_check` | Before committing — check for spec/code drift |
 | `product_agent_context` | Get full AGENTS.md content via MCP |
 | `product_feature_depends_on` | Add or remove `depends-on` feature links — idempotent, cycle-checked |
+
+## Implementation Workflow (FT-074)
+
+`product implement FT-XXX` assembles the executor bundle and surfaces
+three structural cues the agent must use:
+
+- **Patterns.** The bundle's `## Patterns` section renders every PAT
+  cited by `feature.patterns:` plus transitive prerequisites in topo
+  order over `requires:`. Read patterns before TCs — they describe
+  *how* to build this in this codebase.
+- **TC `observes:` inline.** Each TC body carries an inline
+  `**observes:** [...]` line listing the surfaces the test asserts
+  against. Match your assertions to the declared surface(s) — file,
+  graph, exit-code, tag, stdout, stderr, disk-state, or
+  mcp-response.
+- **ADR-051 hard constraint.** The `## Hard constraints` block
+  carries a verbatim reminder: tests must assert against the named
+  surface(s), never the response envelope alone.
+
+Pass `--target legacy-template` to opt into the pre-FT-074 bundle
+shape (no Patterns section, no inline observes, no ADR-051 line) —
+useful when a custom prompt template omits the new variables.
 "#
     .to_string()
 }

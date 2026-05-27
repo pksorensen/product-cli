@@ -27,6 +27,10 @@ pub struct FeatureFrontMatter {
     /// Acknowledged domain gaps with reasoning (ADR-025)
     #[serde(rename = "domains-acknowledged", default)]
     pub domains_acknowledged: std::collections::HashMap<String, String>,
+    /// Patterns cited by this feature (FT-070, ADR-050).
+    /// Materialised bidirectionally with `pattern.examples`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub patterns: Vec<String>,
     /// Optional commitment date (FT-053, ADR-045) — ISO 8601 YYYY-MM-DD.
     /// Advisory only — never blocks verification or phase gate.
     #[serde(
@@ -48,6 +52,10 @@ pub struct BundleMetrics {
     pub depth_1_adrs: usize,
     pub tcs: usize,
     pub domains: Vec<String>,
+    /// Number of patterns included in the bundle (FT-071, ADR-050).
+    /// Defaults to 0 for backward compatibility with pre-FT-071 metrics.
+    #[serde(default)]
+    pub patterns: usize,
     #[serde(rename = "tokens-approx")]
     pub tokens_approx: usize,
     #[serde(rename = "measured-at")]
@@ -148,6 +156,11 @@ pub struct Amendment {
 #[serde(rename_all = "kebab-case")]
 pub enum AdrScope {
     CrossCutting,
+    /// FT-067: decisions enforced once by the platform itself (a fitness
+    /// function TC, chokepoint validator, build-time check) rather than
+    /// re-considered on every feature. Preflight treats these as
+    /// informational only; verify --platform still runs their TCs.
+    Platform,
     Domain,
     #[default]
     FeatureSpecific,
@@ -157,10 +170,22 @@ fn default_scope() -> AdrScope {
     AdrScope::FeatureSpecific
 }
 
+impl AdrScope {
+    /// FT-067: true when this ADR is enforced project-wide (cross-cutting
+    /// OR platform). Use this when the question is "is this ADR an
+    /// architectural fact every feature inherits?". Use the narrower
+    /// `== CrossCutting` test when the question is "must every feature
+    /// link or acknowledge this?".
+    pub fn is_platform_wide(self) -> bool {
+        matches!(self, AdrScope::CrossCutting | AdrScope::Platform)
+    }
+}
+
 impl std::fmt::Display for AdrScope {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::CrossCutting => write!(f, "cross-cutting"),
+            Self::Platform => write!(f, "platform"),
             Self::Domain => write!(f, "domain"),
             Self::FeatureSpecific => write!(f, "feature-specific"),
         }
@@ -172,10 +197,11 @@ impl std::str::FromStr for AdrScope {
     fn from_str(s: &str) -> std::result::Result<Self, String> {
         match s {
             "cross-cutting" => Ok(Self::CrossCutting),
+            "platform" => Ok(Self::Platform),
             "domain" => Ok(Self::Domain),
             "feature-specific" => Ok(Self::FeatureSpecific),
             _ => Err(format!(
-                "unknown scope: '{}'. Valid values: cross-cutting, domain, feature-specific",
+                "unknown scope: '{}'. Valid values: cross-cutting, platform, domain, feature-specific",
                 s
             )),
         }
@@ -250,6 +276,11 @@ pub struct TestFrontMatter {
     /// TC prerequisites
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub requires: Vec<String>,
+    /// Observed surfaces this TC asserts against (FT-072, ADR-051).
+    /// Flat list of surface names; required for `scenario | session | smoke
+    /// | contract` TCs at `phase >= [tc-observability].required-from-phase`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub observes: Vec<String>,
     /// Last run timestamp
     #[serde(rename = "last-run", default, skip_serializing_if = "Option::is_none")]
     pub last_run: Option<String>,
@@ -317,6 +348,9 @@ pub struct ValidatesBlock {
 // Re-export Dependency types from dep_types module (ADR-030)
 pub use crate::dep_types::*;
 
+// Re-export Pattern types from pattern_types module (FT-070, ADR-050)
+pub use crate::pattern_types::*;
+
 // ---------------------------------------------------------------------------
 // Loaded artifact — front-matter + body + file path
 // ---------------------------------------------------------------------------
@@ -343,36 +377,5 @@ pub struct TestCriterion {
     pub formal_blocks: Vec<crate::formal::FormalBlock>,
 }
 
-// ---------------------------------------------------------------------------
-// Artifact enum for unified handling
-// ---------------------------------------------------------------------------
-
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub enum Artifact {
-    Feature(Feature),
-    Adr(Adr),
-    Test(TestCriterion),
-    Dependency(Dependency),
-}
-
-#[allow(dead_code)]
-impl Artifact {
-    pub fn id(&self) -> &str {
-        match self {
-            Self::Feature(f) => &f.front.id,
-            Self::Adr(a) => &a.front.id,
-            Self::Test(t) => &t.front.id,
-            Self::Dependency(d) => &d.front.id,
-        }
-    }
-
-    pub fn title(&self) -> &str {
-        match self {
-            Self::Feature(f) => &f.front.title,
-            Self::Adr(a) => &a.front.title,
-            Self::Test(t) => &t.front.title,
-            Self::Dependency(d) => &d.front.title,
-        }
-    }
-}
+// Artifact enum for unified handling — see crate::types::artifact.
+pub use crate::types_artifact::Artifact;
