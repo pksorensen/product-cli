@@ -2,7 +2,7 @@
 id: TC-846
 title: ft_073_exit_criteria_pattern_authoring
 type: exit-criteria
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-073
@@ -10,6 +10,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_846_ft_073_exit_criteria_pattern_authoring
+last-run: 2026-05-27T14:44:38.372710691+00:00
+last-run-duration: 0.4s
 ---
 
 ## Description

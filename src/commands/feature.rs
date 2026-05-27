@@ -54,7 +54,7 @@ pub enum FeatureCommands {
         #[arg(long)]
         remove: Vec<String>,
     },
-    /// Link a feature to an ADR, test, or dependency
+    /// Link a feature to an ADR, test, dependency, or pattern
     Link {
         /// Feature ID
         id: String,
@@ -67,6 +67,10 @@ pub enum FeatureCommands {
         /// Feature ID this feature depends on
         #[arg(long)]
         dep: Option<String>,
+        /// Pattern (PAT-XXX) cited by this feature. Bidirectional with
+        /// `pattern.examples` (FT-073, ADR-050).
+        #[arg(long)]
+        pattern: Option<String>,
         /// Accept inferred transitive TC links without prompting (required in non-TTY use)
         #[arg(long)]
         yes: bool,
@@ -119,8 +123,8 @@ pub(crate) fn handle_feature(cmd: FeatureCommands, fmt: &str) -> BoxResult {
         FeatureCommands::Domain { id, add, remove } => {
             super::render(feature_write_ops::feature_domain(&id, add, remove), fmt)
         }
-        FeatureCommands::Link { id, adr, test, dep, yes } => {
-            feature_write_ops::feature_link(&id, adr, test, dep, yes)
+        FeatureCommands::Link { id, adr, test, dep, pattern, yes } => {
+            feature_write_ops::feature_link(&id, adr, test, dep, pattern, yes)
         }
         FeatureCommands::List { phase, status } => {
             super::render(feature_list(phase, status), fmt)

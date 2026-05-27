@@ -76,7 +76,7 @@ pub struct ProductConfig {
 
 pub use crate::config_author::AuthorConfig;
 pub use crate::config_cycle_times::CycleTimesConfig;
-pub use crate::config_features::{CompletenessSeverity, FeaturesConfig};
+pub use crate::config_features::{CompletenessSeverity, FeaturesConfig, PatternsRequiredSeverity};
 pub use crate::config_observability::{BodyReferenceSeverity, TcObservabilityConfig};
 pub use crate::config_paths::PathsConfig;
 pub use crate::config_patterns::{PatternBodySeverity, PatternsConfig};

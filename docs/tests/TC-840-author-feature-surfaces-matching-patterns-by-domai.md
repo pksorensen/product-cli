@@ -2,7 +2,7 @@
 id: TC-840
 title: author_feature_surfaces_matching_patterns_by_domain
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-073
@@ -10,6 +10,10 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_840_author_feature_surfaces_matching_patterns_by_domain
+observes:
+- stdout
+last-run: 2026-05-27T14:44:38.372710691+00:00
+last-run-duration: 0.4s
 ---
 
 ## Description

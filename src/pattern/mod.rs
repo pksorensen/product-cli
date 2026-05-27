@@ -9,11 +9,13 @@ pub mod create;
 pub mod link;
 pub mod render;
 pub mod status_change;
+pub mod suggest;
 
 pub use create::{apply_create, plan_create, CreatePlan};
 pub use link::{apply_link, plan_link, LinkPlan, LinkReciprocation, LinkWrite, LinkWriteKind};
 pub use render::{render_list_text, render_show_text};
 pub use status_change::{apply_status_change, plan_status_change, StatusChangePlan};
+pub use suggest::{render_suggestions_block, suggest_patterns, Suggestion};
 
 #[cfg(test)]
 mod tests;

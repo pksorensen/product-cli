@@ -22417,3 +22417,531 @@ fn tc_838_ft_072_exit_criteria_observes_field() {
     h.run(&["graph", "check"]).assert_exit(0);
 }
 
+
+// =============================================================================
+// FT-073 — Pattern Authoring (author pattern session, feature link --pattern,
+// pattern suggestions, MCP feature_link --pattern, W032/W035 advisories)
+// =============================================================================
+
+/// TC-839 — `product author pattern` session yields a valid PAT file on disk
+/// when the agent goes through `pattern new` + body fill + `pattern link
+/// --adr`. The test exercises the same flow without launching an agent —
+/// it drives the underlying CLI calls directly because the session itself
+/// is the agent's responsibility.
+#[test]
+fn tc_839_author_pattern_session_creates_valid_pat() {
+    let h = Harness::new();
+
+    // The session-equivalent CLI sequence the agent would invoke.
+    h.run(&["pattern", "new", "TC Authoring Observability"])
+        .assert_exit(0);
+    let pat_path = h
+        .dir
+        .path()
+        .join("docs/patterns/PAT-001-tc-authoring-observability.md");
+    assert!(pat_path.exists(), "pattern file missing: {:?}", pat_path);
+
+    // The scaffolded file already contains every required H2 heading
+    // (FT-070 / ADR-050). Confirm the body validation passes.
+    let body = std::fs::read_to_string(&pat_path).expect("read pattern file");
+    for heading in [
+        "## When to use",
+        "## Prerequisites",
+        "## The pattern",
+        "## Anti-patterns",
+        "## Worked example",
+    ] {
+        assert!(body.contains(heading), "missing heading {}", heading);
+    }
+    assert!(body.contains("status: live"));
+
+    // The agent links one ADR to satisfy the "every pattern cites at least
+    // one governing ADR" invariant from the author-pattern prompt.
+    // Create a stub ADR via `adr new` first.
+    h.run(&["adr", "new", "Test ADR"]).assert_exit(0);
+    h.run(&["pattern", "link", "PAT-001", "--adr", "ADR-001"])
+        .assert_exit(0);
+
+    // Closing call: `graph check` returns clean against the new PAT
+    // (E031 / W032 / W033 all silent).
+    let chk = h.run(&["graph", "check"]);
+    let combined = format!("{}{}", chk.stdout, chk.stderr);
+    assert!(!combined.contains("E031"), "unexpected E031:\n{}", combined);
+    assert!(!combined.contains("W033"), "unexpected W033:\n{}", combined);
+
+    // Confirm the prompt registry advertises author-pattern.
+    let prompts = h.run(&["prompts", "list"]);
+    prompts.assert_exit(0);
+    assert!(
+        prompts.stdout.contains("author-pattern"),
+        "prompts list missing author-pattern:\n{}",
+        prompts.stdout
+    );
+}
+
+/// TC-840 — `product author feature --print-prompt --domains foo,bar` surfaces
+/// matching patterns in the rendered prompt when configured patterns
+/// overlap the supplied domains.
+#[test]
+fn tc_840_author_feature_surfaces_matching_patterns_by_domain() {
+    let h = Harness::new();
+
+    // Seed two patterns with distinct domains. `pattern new` only seeds the
+    // body — we then write a small request that adds domains.
+    h.run(&["pattern", "new", "API pattern"]).assert_exit(0);
+    h.run(&["pattern", "new", "Observability pattern"])
+        .assert_exit(0);
+    // Patch domains directly on each pattern via raw file edit (no public
+    // CLI for editing pattern domains in v1).
+    let pat_a = h.dir.path().join("docs/patterns/PAT-001-api-pattern.md");
+    let mut a = std::fs::read_to_string(&pat_a).expect("read");
+    a = a.replace(
+        "domains: []",
+        "domains:\n- api",
+    );
+    std::fs::write(&pat_a, a).expect("write");
+    let pat_b = h
+        .dir
+        .path()
+        .join("docs/patterns/PAT-002-observability-pattern.md");
+    let mut b = std::fs::read_to_string(&pat_b).expect("read");
+    b = b.replace(
+        "domains: []",
+        "domains:\n- observability",
+    );
+    std::fs::write(&pat_b, b).expect("write");
+
+    // Default config: suggest-domains is on. Domains overlap both patterns.
+    let out = h.run(&[
+        "author",
+        "feature",
+        "--print-prompt",
+        "--domains",
+        "api,observability",
+    ]);
+    out.assert_exit(0);
+    assert!(
+        out.stdout.contains("Matching patterns"),
+        "missing Matching patterns block:\n{}",
+        out.stdout
+    );
+    assert!(
+        out.stdout.contains("PAT-001"),
+        "expected PAT-001 in suggestions:\n{}",
+        out.stdout
+    );
+    assert!(
+        out.stdout.contains("PAT-002"),
+        "expected PAT-002 in suggestions:\n{}",
+        out.stdout
+    );
+
+    // With suggest-domains = false the block is suppressed.
+    let cfg = h.dir.path().join("product.toml");
+    let mut cfg_content = std::fs::read_to_string(&cfg).expect("read config");
+    cfg_content.push_str("\n[patterns]\nsuggest-domains = false\n");
+    std::fs::write(&cfg, cfg_content).expect("write config");
+    let suppressed = h.run(&[
+        "author",
+        "feature",
+        "--print-prompt",
+        "--domains",
+        "api,observability",
+    ]);
+    suppressed.assert_exit(0);
+    assert!(
+        !suppressed.stdout.contains("Matching patterns"),
+        "Matching patterns block should be suppressed:\n{}",
+        suppressed.stdout
+    );
+
+    // No domain overlap — no block (silent).
+    let cfg2 = h.dir.path().join("product.toml");
+    let cfg_content = std::fs::read_to_string(&cfg2).expect("read");
+    std::fs::write(
+        &cfg2,
+        cfg_content.replace("suggest-domains = false", "suggest-domains = true"),
+    )
+    .expect("write");
+    let no_overlap = h.run(&[
+        "author",
+        "feature",
+        "--print-prompt",
+        "--domains",
+        "unrelated",
+    ]);
+    no_overlap.assert_exit(0);
+    assert!(
+        !no_overlap.stdout.contains("Matching patterns"),
+        "expected silence on no overlap:\n{}",
+        no_overlap.stdout
+    );
+}
+
+/// TC-841 — `product feature link FT-X --pattern PAT-Y` writes both sides
+/// atomically: FT-X.patterns gets PAT-Y, PAT-Y.examples gets FT-X.
+#[test]
+fn tc_841_feature_link_pattern_writes_bidirectional() {
+    let h = Harness::new();
+    h.run(&["feature", "new", "Sample"]).assert_exit(0);
+    h.run(&["pattern", "new", "Some Pattern"]).assert_exit(0);
+
+    let out = h.run(&[
+        "feature",
+        "link",
+        "FT-001",
+        "--pattern",
+        "PAT-001",
+    ]);
+    out.assert_exit(0);
+
+    let feat = std::fs::read_to_string(
+        h.dir.path().join("docs/features/FT-001-sample.md"),
+    )
+    .expect("read feature");
+    assert!(
+        feat.contains("patterns:") && feat.contains("PAT-001"),
+        "feature missing patterns entry:\n{}",
+        feat
+    );
+
+    let pat = std::fs::read_to_string(
+        h.dir.path().join("docs/patterns/PAT-001-some-pattern.md"),
+    )
+    .expect("read pattern");
+    assert!(
+        pat.contains("examples:") && pat.contains("FT-001"),
+        "pattern missing examples entry:\n{}",
+        pat
+    );
+
+    // Idempotent — re-running produces no changes.
+    let out2 = h.run(&[
+        "feature",
+        "link",
+        "FT-001",
+        "--pattern",
+        "PAT-001",
+    ]);
+    out2.assert_exit(0);
+    let feat2 = std::fs::read_to_string(
+        h.dir.path().join("docs/features/FT-001-sample.md"),
+    )
+    .expect("read feature");
+    assert_eq!(
+        feat.matches("PAT-001").count(),
+        feat2.matches("PAT-001").count(),
+        "PAT-001 should not be duplicated"
+    );
+}
+
+/// TC-842 — MCP `product_feature_link {id, pattern}` produces a file
+/// byte-identical to the CLI shape. Sibling CLI run validates parity.
+#[test]
+fn tc_842_mcp_feature_link_with_pattern_arg_writes_to_disk() {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let h = Harness::new();
+    let cfg = h.dir.path().join("product.toml");
+    let mut cfg_content = std::fs::read_to_string(&cfg).expect("read config");
+    cfg_content.push_str("\n[mcp]\nwrite = true\n");
+    std::fs::write(&cfg, cfg_content).expect("write config");
+
+    h.run(&["feature", "new", "MCP Feature"]).assert_exit(0);
+    h.run(&["pattern", "new", "MCP Pattern"]).assert_exit(0);
+
+    let mut child = Command::new(&h.bin)
+        .args(["mcp"])
+        .current_dir(h.dir.path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn mcp");
+
+    let req = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+            "name": "product_feature_link",
+            "arguments": {"id": "FT-001", "pattern": "PAT-001"}
+        }
+    });
+    {
+        let stdin = child.stdin.as_mut().expect("stdin");
+        writeln!(stdin, "{}", req).expect("write request");
+    }
+    drop(child.stdin.take());
+    let output = child.wait_with_output().expect("wait child");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let response_line = stdout
+        .lines()
+        .find(|l| l.starts_with('{'))
+        .unwrap_or_default();
+    let resp: serde_json::Value =
+        serde_json::from_str(response_line).expect("valid JSON-RPC");
+    assert!(resp.get("error").is_none(), "MCP error: {:?}", resp);
+
+    // Both files must exist on disk reflecting the bidirectional write.
+    let feat = std::fs::read_to_string(
+        h.dir.path().join("docs/features/FT-001-mcp-feature.md"),
+    )
+    .expect("read feature");
+    assert!(
+        feat.contains("PAT-001"),
+        "feature file missing PAT-001 (FT-046 anti-stub guard):\n{}",
+        feat
+    );
+
+    let pat = std::fs::read_to_string(
+        h.dir.path().join("docs/patterns/PAT-001-mcp-pattern.md"),
+    )
+    .expect("read pattern");
+    assert!(
+        pat.contains("FT-001"),
+        "pattern file missing FT-001 reciprocation:\n{}",
+        pat
+    );
+}
+
+/// TC-843 — `product_pattern_new` invoked over MCP writes a file on disk.
+/// Envelope alone is insufficient: file must exist (FT-046 anti-stub).
+#[test]
+fn tc_843_mcp_pattern_new_in_authoring_session_writes_to_disk() {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let h = Harness::new();
+    let cfg = h.dir.path().join("product.toml");
+    let mut cfg_content = std::fs::read_to_string(&cfg).expect("read config");
+    cfg_content.push_str("\n[mcp]\nwrite = true\n");
+    std::fs::write(&cfg, cfg_content).expect("write config");
+
+    let mut child = Command::new(&h.bin)
+        .args(["mcp"])
+        .current_dir(h.dir.path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn mcp");
+
+    let req_new = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+            "name": "product_pattern_new",
+            "arguments": {"title": "Authored Through MCP"}
+        }
+    });
+    {
+        let stdin = child.stdin.as_mut().expect("stdin");
+        writeln!(stdin, "{}", req_new).expect("write request");
+    }
+    drop(child.stdin.take());
+    let output = child.wait_with_output().expect("wait child");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let line = stdout
+        .lines()
+        .find(|l| l.starts_with('{'))
+        .unwrap_or_default();
+    let resp: serde_json::Value = serde_json::from_str(line).expect("valid response");
+    let text = resp["result"]["content"][0]["text"]
+        .as_str()
+        .expect("text payload");
+    let payload: serde_json::Value =
+        serde_json::from_str(text).expect("payload JSON");
+    let path = payload["path"].as_str().expect("path");
+    assert!(
+        std::path::Path::new(path).exists(),
+        "file not on disk at {} — envelope-only stub is the FT-046 anti-pattern",
+        path
+    );
+}
+
+/// TC-844 — `product graph check` emits the W035 advisory when
+/// `[features].patterns-required-severity = "warning"` and an in-progress
+/// feature has empty `patterns:`. `severity = "off"` silences it.
+#[test]
+fn tc_844_graph_check_advisory_for_feature_with_no_patterns_when_enabled() {
+    let h = Harness::new();
+    // Seed a feature, promote it to in-progress with no patterns linked.
+    h.run(&["feature", "new", "Active Feature"]).assert_exit(0);
+    // Need a TC linked with runner config to allow the in-progress
+    // transition (E022 gate from FT-058).
+    h.run(&[
+        "test",
+        "new",
+        "active feature test",
+        "--type",
+        "scenario",
+        "--observes",
+        "file",
+    ])
+    .assert_exit(0);
+    h.run(&[
+        "feature",
+        "link",
+        "FT-001",
+        "--test",
+        "TC-001",
+    ])
+    .assert_exit(0);
+    // Configure the TC runner so feature can promote.
+    h.run(&[
+        "test",
+        "runner",
+        "TC-001",
+        "--runner",
+        "cargo-test",
+        "--args",
+        "tc_001_active_feature_test",
+    ])
+    .assert_exit(0);
+    h.run(&["feature", "status", "FT-001", "in-progress"])
+        .assert_exit(0);
+
+    // First baseline — default severity is `off`, no W035.
+    let baseline = h.run(&["graph", "check"]);
+    let combined = format!("{}{}", baseline.stdout, baseline.stderr);
+    assert!(
+        !combined.contains("W035"),
+        "W035 fired with severity=off:\n{}",
+        combined
+    );
+
+    // Enable W035 — write directive into product.toml. The harness fixture
+    // already declares `[features]`, so we splice the new key under that
+    // existing header rather than appending a duplicate block.
+    let cfg = h.dir.path().join("product.toml");
+    let cfg_content = std::fs::read_to_string(&cfg).expect("read config");
+    let cfg_content = cfg_content.replace(
+        "[features]\n",
+        "[features]\npatterns-required-severity = \"warning\"\n",
+    );
+    std::fs::write(&cfg, cfg_content).expect("write config");
+    let warn = h.run(&["graph", "check"]);
+    let combined = format!("{}{}", warn.stdout, warn.stderr);
+    assert!(
+        combined.contains("W035"),
+        "W035 missing with severity=warning:\n{}",
+        combined
+    );
+    assert!(
+        combined.contains("FT-001"),
+        "W035 should name FT-001:\n{}",
+        combined
+    );
+
+    // Severity off again — flip and confirm silence.
+    let cfg2 = h.dir.path().join("product.toml");
+    let cfg_content = std::fs::read_to_string(&cfg2).expect("read");
+    std::fs::write(
+        &cfg2,
+        cfg_content.replace(
+            "patterns-required-severity = \"warning\"",
+            "patterns-required-severity = \"off\"",
+        ),
+    )
+    .expect("write");
+    let off = h.run(&["graph", "check"]);
+    let combined = format!("{}{}", off.stdout, off.stderr);
+    assert!(
+        !combined.contains("W035"),
+        "W035 fired with severity=off after toggle:\n{}",
+        combined
+    );
+}
+
+/// TC-845 — `product feature link --pattern PAT-X` against a deprecated
+/// PAT-X emits a stderr deprecation warning, exits 0, and writes both
+/// sides bidirectionally.
+#[test]
+fn tc_845_feature_link_pattern_against_deprecated_pat_warns_but_writes() {
+    let h = Harness::new();
+    h.run(&["feature", "new", "Sample"]).assert_exit(0);
+    h.run(&["pattern", "new", "Old Pattern"]).assert_exit(0);
+    h.run(&["pattern", "new", "New Pattern"]).assert_exit(0);
+    // Deprecate PAT-001 superseded by PAT-002.
+    h.run(&[
+        "pattern",
+        "status",
+        "PAT-001",
+        "deprecated",
+        "--deprecated-by",
+        "PAT-002",
+    ])
+    .assert_exit(0);
+
+    let out = h.run(&[
+        "feature",
+        "link",
+        "FT-001",
+        "--pattern",
+        "PAT-001",
+    ]);
+    out.assert_exit(0);
+    assert!(
+        out.stderr.contains("W032") || out.stderr.contains("deprecated"),
+        "expected deprecation warning on stderr:\n{}",
+        out.stderr
+    );
+
+    // Both files written bidirectionally.
+    let feat = std::fs::read_to_string(
+        h.dir.path().join("docs/features/FT-001-sample.md"),
+    )
+    .expect("read feature");
+    assert!(
+        feat.contains("PAT-001"),
+        "feature missing PAT-001:\n{}",
+        feat
+    );
+    let pat = std::fs::read_to_string(
+        h.dir.path().join("docs/patterns/PAT-001-old-pattern.md"),
+    )
+    .expect("read pattern");
+    assert!(
+        pat.contains("FT-001"),
+        "pattern missing FT-001 reciprocation:\n{}",
+        pat
+    );
+
+    // graph check picks up W032 once the link is recorded.
+    let chk = h.run(&["graph", "check"]);
+    let combined = format!("{}{}", chk.stdout, chk.stderr);
+    assert!(
+        combined.contains("W032"),
+        "graph check missing W032:\n{}",
+        combined
+    );
+}
+
+/// TC-846 — aggregator for FT-073 exit criteria.
+#[test]
+fn tc_846_ft_073_exit_criteria_pattern_authoring() {
+    let h = Harness::new();
+    // Author surface is wired.
+    h.run(&["author", "pattern", "--help"]).assert_exit(0);
+    // Feature link surface has --pattern.
+    let link_help = h.run(&["feature", "link", "--help"]);
+    link_help.assert_exit(0);
+    assert!(
+        link_help.stdout.contains("--pattern"),
+        "feature link missing --pattern:\n{}",
+        link_help.stdout
+    );
+    // Prompts registry advertises author-pattern.
+    let prompts = h.run(&["prompts", "list"]);
+    prompts.assert_exit(0);
+    assert!(
+        prompts.stdout.contains("author-pattern"),
+        "author-pattern missing from prompts list:\n{}",
+        prompts.stdout
+    );
+    // graph check exits 0 against the bare fixture.
+    h.run(&["graph", "check"]).assert_exit(0);
+}

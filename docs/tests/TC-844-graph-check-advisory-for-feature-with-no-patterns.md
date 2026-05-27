@@ -2,7 +2,7 @@
 id: TC-844
 title: graph_check_advisory_for_feature_with_no_patterns_when_enabled
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-073
@@ -10,6 +10,11 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_844_graph_check_advisory_for_feature_with_no_patterns_when_enabled
+observes:
+- stdout
+- exit-code
+last-run: 2026-05-27T14:44:38.372710691+00:00
+last-run-duration: 0.5s
 ---
 
 ## Description

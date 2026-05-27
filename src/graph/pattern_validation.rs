@@ -9,7 +9,9 @@
 //!   configured in `[patterns].body-sections`. Promotable to E033 when
 //!   `[patterns].body-severity = "error"`.
 
-use crate::config::{PatternBodySeverity, PatternsConfig};
+use crate::config::{
+    FeaturesConfig, PatternBodySeverity, PatternsConfig, PatternsRequiredSeverity,
+};
 use crate::error::{CheckResult, Diagnostic, DiagnosticTier};
 use crate::graph::pattern_topo::detect_any_cycle;
 use crate::graph::KnowledgeGraph;
@@ -20,6 +22,48 @@ pub fn check_all(graph: &KnowledgeGraph, config: &PatternsConfig, result: &mut C
     check_requires_cycle(graph, result);
     check_deprecated_pattern_cited(graph, result);
     check_pattern_body_sections(graph, config, result);
+}
+
+/// FT-073 / ADR-050 — W035 advisory raised when an `in-progress` feature has
+/// no entries in `patterns:`. Off by default; enabled per
+/// `[features].patterns-required-severity`.
+pub fn check_patterns_required(
+    graph: &KnowledgeGraph,
+    config: &FeaturesConfig,
+    result: &mut CheckResult,
+) {
+    if matches!(
+        config.patterns_required_severity,
+        PatternsRequiredSeverity::Off
+    ) {
+        return;
+    }
+    for feature in graph.features.values() {
+        if feature.front.status != FeatureStatus::InProgress {
+            continue;
+        }
+        if !feature.front.patterns.is_empty() {
+            continue;
+        }
+        let mut diag = Diagnostic::warning(
+            "W035",
+            "in-progress feature cites no patterns",
+        )
+        .with_file(feature.path.clone())
+        .with_detail(&format!(
+            "{} — {}",
+            feature.front.id, feature.front.title
+        ))
+        .with_hint("review `product pattern list` and cite applicable patterns via `product feature link FT-XXX --pattern PAT-YYY`, or set `[features].patterns-required-severity = \"off\"`");
+        match config.patterns_required_severity {
+            PatternsRequiredSeverity::Off => unreachable!(),
+            PatternsRequiredSeverity::Warning => result.warnings.push(diag),
+            PatternsRequiredSeverity::Error => {
+                diag.tier = DiagnosticTier::Error;
+                result.errors.push(diag);
+            }
+        }
+    }
 }
 
 /// E031 — `requires:` cycle in the pattern DAG.

@@ -1,4 +1,5 @@
-//! `[patterns]` section (FT-070, ADR-050) — pattern body completeness check.
+//! `[patterns]` section (FT-070, FT-073, ADR-050) — pattern body completeness,
+//! domain-based suggestion, and patterns-required advisory.
 
 use serde::{Deserialize, Serialize};
 
@@ -11,6 +12,10 @@ pub struct PatternsConfig {
     /// Severity of body-section warnings — `warning` (default) or `error`.
     #[serde(rename = "body-severity", default)]
     pub body_severity: PatternBodySeverity,
+    /// FT-073: enable domain-based pattern suggestion in
+    /// `product author feature` sessions. Defaults to `true`.
+    #[serde(rename = "suggest-domains", default = "default_suggest_domains")]
+    pub suggest_domains: bool,
 }
 
 impl Default for PatternsConfig {
@@ -18,6 +23,7 @@ impl Default for PatternsConfig {
         Self {
             body_sections: default_body_sections(),
             body_severity: PatternBodySeverity::default(),
+            suggest_domains: default_suggest_domains(),
         }
     }
 }
@@ -30,6 +36,10 @@ fn default_body_sections() -> Vec<String> {
         "Anti-patterns".into(),
         "Worked example".into(),
     ]
+}
+
+fn default_suggest_domains() -> bool {
+    true
 }
 
 /// `[patterns].body-severity` — `warning` by default.

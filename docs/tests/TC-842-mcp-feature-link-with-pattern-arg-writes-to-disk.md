@@ -2,7 +2,7 @@
 id: TC-842
 title: mcp_feature_link_with_pattern_arg_writes_to_disk
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-073
@@ -10,6 +10,11 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_842_mcp_feature_link_with_pattern_arg_writes_to_disk
+observes:
+- file
+- mcp-response
+last-run: 2026-05-27T14:44:38.372710691+00:00
+last-run-duration: 0.4s
 ---
 
 ## Description

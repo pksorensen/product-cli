@@ -2,7 +2,7 @@
 id: TC-843
 title: mcp_pattern_new_in_authoring_session_writes_to_disk
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-073
@@ -10,6 +10,11 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_843_mcp_pattern_new_in_authoring_session_writes_to_disk
+observes:
+- file
+- mcp-response
+last-run: 2026-05-27T14:44:38.372710691+00:00
+last-run-duration: 0.3s
 ---
 
 ## Description

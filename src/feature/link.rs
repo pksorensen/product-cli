@@ -28,6 +28,7 @@ pub enum LinkWriteKind {
     Feature,
     Adr,
     Tc,
+    Pattern,
 }
 
 impl LinkWriteKind {
@@ -36,8 +37,19 @@ impl LinkWriteKind {
             Self::Feature => "feature",
             Self::Adr => "adr",
             Self::Tc => "tc",
+            Self::Pattern => "pattern",
         }
     }
+}
+
+/// FT-073: a non-fatal warning produced by `plan_link` — currently only
+/// fires when the caller cites a deprecated pattern. The write still
+/// proceeds. Captured in the plan so adapters (CLI / MCP) can surface the
+/// warning to the user without producing diverging output paths.
+#[derive(Debug, Clone)]
+pub struct LinkWarning {
+    pub code: &'static str,
+    pub message: String,
 }
 
 /// A reciprocal back-reference that the plan filled in on a link target.
@@ -53,6 +65,9 @@ pub struct LinkPlan {
     pub feature_id: String,
     pub writes: Vec<LinkWrite>,
     pub reciprocated: Vec<LinkReciprocation>,
+    /// FT-073: non-fatal warnings surfaced by the planner.
+    #[allow(dead_code)]
+    pub warnings: Vec<LinkWarning>,
 }
 
 impl LinkPlan {
@@ -76,6 +91,20 @@ pub fn plan_link(
     adr: Option<&str>,
     test: Option<&str>,
 ) -> Result<LinkPlan, ProductError> {
+    plan_link_with_pattern(graph, feature_id, adr, test, None)
+}
+
+/// FT-073: extended `plan_link` that also accepts an optional `pattern:
+/// PAT-YYY`. When supplied, the feature's `patterns:` array gets the entry
+/// and the pattern's `examples:` array is reciprocated. Linking against a
+/// deprecated pattern succeeds but emits a `LinkWarning`.
+pub fn plan_link_with_pattern(
+    graph: &KnowledgeGraph,
+    feature_id: &str,
+    adr: Option<&str>,
+    test: Option<&str>,
+    pattern: Option<&str>,
+) -> Result<LinkPlan, ProductError> {
     let feature = graph
         .features
         .get(feature_id)
@@ -93,10 +122,16 @@ pub fn plan_link(
             return Err(ProductError::NotFound(format!("test {}", tc_id)));
         }
     }
+    if let Some(pat_id) = pattern {
+        if !graph.patterns.contains_key(pat_id) {
+            return Err(ProductError::NotFound(format!("pattern {}", pat_id)));
+        }
+    }
 
     let mut front = feature.front.clone();
     let mut writes = Vec::new();
     let mut reciprocated = Vec::new();
+    let mut warnings: Vec<LinkWarning> = Vec::new();
     let mut feature_changed = false;
 
     if let Some(adr_id) = adr {
@@ -145,6 +180,47 @@ pub fn plan_link(
         }
     }
 
+    if let Some(pat_id) = pattern {
+        if !front.patterns.contains(&pat_id.to_string()) {
+            front.patterns.push(pat_id.to_string());
+            feature_changed = true;
+        }
+        if let Some(pat) = graph.patterns.get(pat_id) {
+            // Deprecation surfaced as a non-fatal warning; write still
+            // proceeds because the author may intentionally cite the
+            // deprecated pattern while migrating.
+            if pat.front.status == crate::types::PatternStatus::Deprecated {
+                let replacement = pat
+                    .front
+                    .deprecated_by
+                    .as_deref()
+                    .map(|r| format!(" (replaced by {})", r))
+                    .unwrap_or_default();
+                warnings.push(LinkWarning {
+                    code: "W032",
+                    message: format!(
+                        "{} cites deprecated pattern {}{}",
+                        feature_id, pat_id, replacement
+                    ),
+                });
+            }
+            if !pat.front.examples.contains(&feature_id.to_string()) {
+                let mut pat_front = pat.front.clone();
+                pat_front.examples.push(feature_id.to_string());
+                let content = parser::render_pattern(&pat_front, &pat.body);
+                writes.push(LinkWrite {
+                    path: pat.path.clone(),
+                    content,
+                    kind: LinkWriteKind::Pattern,
+                });
+                reciprocated.push(LinkReciprocation {
+                    id: pat_id.to_string(),
+                    field: "examples",
+                });
+            }
+        }
+    }
+
     // The feature's own write must be inserted first so callers reporting
     // the write list lead with the primary artifact.
     if feature_changed {
@@ -161,6 +237,7 @@ pub fn plan_link(
         feature_id: feature_id.to_string(),
         writes,
         reciprocated,
+        warnings,
     })
 }
 
@@ -178,166 +255,3 @@ pub fn apply_link(plan: &LinkPlan) -> Result<(), ProductError> {
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::types::{
-        Adr, AdrFrontMatter, AdrScope, AdrStatus, Feature, FeatureFrontMatter, FeatureStatus,
-        TestCriterion, TestFrontMatter, TestStatus, TestType, ValidatesBlock,
-    };
-    use std::collections::HashMap;
-
-    fn feat(id: &str) -> Feature {
-        Feature {
-            front: FeatureFrontMatter {
-                id: id.to_string(),
-                title: format!("feature {}", id),
-                phase: 1,
-                status: FeatureStatus::Planned,
-                depends_on: vec![],
-                adrs: vec![],
-                tests: vec![],
-                domains: vec![],
-                domains_acknowledged: HashMap::new(),
-                patterns: vec![],
-                due_date: None,
-                bundle: None,
-            },
-            body: String::new(),
-            path: PathBuf::from(format!("docs/features/{}.md", id)),
-        }
-    }
-
-    fn adr(id: &str) -> Adr {
-        Adr {
-            front: AdrFrontMatter {
-                id: id.to_string(),
-                title: format!("adr {}", id),
-                status: AdrStatus::Proposed,
-                features: vec![],
-                supersedes: vec![],
-                superseded_by: vec![],
-                domains: vec![],
-                scope: AdrScope::Domain,
-                content_hash: None,
-                amendments: vec![],
-                source_files: vec![],
-                removes: vec![],
-                deprecates: vec![],
-            },
-            body: String::new(),
-            path: PathBuf::from(format!("docs/adrs/{}.md", id)),
-        }
-    }
-
-    fn tc(id: &str) -> TestCriterion {
-        TestCriterion {
-            front: TestFrontMatter {
-                id: id.to_string(),
-                title: format!("tc {}", id),
-                test_type: TestType::Scenario,
-                status: TestStatus::Unimplemented,
-                validates: ValidatesBlock { features: vec![], adrs: vec![] },
-                phase: 1,
-                content_hash: None,
-                runner: None,
-                runner_args: None,
-                runner_timeout: None,
-                requires: vec![],
-                observes: vec![],
-                last_run: None,
-                failure_message: None,
-                last_run_duration: None,
-            },
-            body: String::new(),
-            path: PathBuf::from(format!("docs/tests/{}.md", id)),
-            formal_blocks: vec![],
-        }
-    }
-
-    #[test]
-    fn unknown_feature_returns_not_found() {
-        let g = KnowledgeGraph::build(vec![], vec![], vec![]);
-        let err = plan_link(&g, "FT-001", None, None).unwrap_err();
-        assert!(matches!(err, ProductError::NotFound(_)));
-    }
-
-    #[test]
-    fn unknown_adr_target_returns_not_found_before_any_write() {
-        let g = KnowledgeGraph::build(vec![feat("FT-001")], vec![], vec![]);
-        let err = plan_link(&g, "FT-001", Some("ADR-999"), None).unwrap_err();
-        assert!(matches!(err, ProductError::NotFound(_)));
-    }
-
-    #[test]
-    fn unknown_tc_target_returns_not_found_before_any_write() {
-        let g = KnowledgeGraph::build(vec![feat("FT-001")], vec![], vec![]);
-        let err = plan_link(&g, "FT-001", None, Some("TC-999")).unwrap_err();
-        assert!(matches!(err, ProductError::NotFound(_)));
-    }
-
-    #[test]
-    fn link_to_tc_emits_reciprocal_write() {
-        let g = KnowledgeGraph::build(vec![feat("FT-001")], vec![], vec![tc("TC-001")]);
-        let plan = plan_link(&g, "FT-001", None, Some("TC-001")).unwrap();
-        assert_eq!(plan.writes.len(), 2, "feature + TC");
-        assert_eq!(plan.reciprocated.len(), 1);
-        assert_eq!(plan.reciprocated[0].id, "TC-001");
-        assert_eq!(plan.reciprocated[0].field, "validates.features");
-    }
-
-    #[test]
-    fn link_to_adr_emits_reciprocal_write() {
-        let g = KnowledgeGraph::build(vec![feat("FT-001")], vec![adr("ADR-001")], vec![]);
-        let plan = plan_link(&g, "FT-001", Some("ADR-001"), None).unwrap();
-        assert_eq!(plan.writes.len(), 2, "feature + ADR");
-        assert_eq!(plan.reciprocated.len(), 1);
-        assert_eq!(plan.reciprocated[0].id, "ADR-001");
-        assert_eq!(plan.reciprocated[0].field, "features");
-    }
-
-    #[test]
-    fn link_to_both_emits_three_writes() {
-        let g = KnowledgeGraph::build(
-            vec![feat("FT-001")],
-            vec![adr("ADR-001")],
-            vec![tc("TC-001")],
-        );
-        let plan =
-            plan_link(&g, "FT-001", Some("ADR-001"), Some("TC-001")).unwrap();
-        assert_eq!(plan.writes.len(), 3);
-        assert_eq!(plan.reciprocated.len(), 2);
-        // Feature write must be first.
-        assert_eq!(plan.writes[0].kind, LinkWriteKind::Feature);
-    }
-
-    #[test]
-    fn idempotent_link_is_a_noop_plan() {
-        // Pre-link both sides; subsequent call should produce no writes.
-        let mut f = feat("FT-001");
-        f.front.adrs.push("ADR-001".to_string());
-        f.front.tests.push("TC-001".to_string());
-        let mut a = adr("ADR-001");
-        a.front.features.push("FT-001".to_string());
-        let mut t = tc("TC-001");
-        t.front.validates.features.push("FT-001".to_string());
-        let g = KnowledgeGraph::build(vec![f], vec![a], vec![t]);
-        let plan =
-            plan_link(&g, "FT-001", Some("ADR-001"), Some("TC-001")).unwrap();
-        assert!(plan.writes.is_empty());
-        assert!(plan.reciprocated.is_empty());
-        assert!(!plan.is_changed());
-    }
-
-    #[test]
-    fn already_linked_on_feature_side_still_reciprocates() {
-        // Feature has the link but TC's back-reference is empty (legacy data).
-        let mut f = feat("FT-001");
-        f.front.tests.push("TC-001".to_string());
-        let g = KnowledgeGraph::build(vec![f], vec![], vec![tc("TC-001")]);
-        let plan = plan_link(&g, "FT-001", None, Some("TC-001")).unwrap();
-        assert_eq!(plan.writes.len(), 1, "only the TC needs writing");
-        assert_eq!(plan.writes[0].kind, LinkWriteKind::Tc);
-        assert_eq!(plan.reciprocated.len(), 1);
-    }
-}

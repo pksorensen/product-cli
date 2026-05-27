@@ -2,7 +2,7 @@
 id: FT-073
 title: Pattern Authoring — author pattern Session and Feature-Aware Pattern Suggestions
 phase: 5
-status: planned
+status: complete
 depends-on:
 - FT-070
 - FT-071

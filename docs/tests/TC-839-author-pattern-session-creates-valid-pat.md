@@ -2,7 +2,7 @@
 id: TC-839
 title: author_pattern_session_creates_valid_pat
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-073
@@ -10,6 +10,11 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_839_author_pattern_session_creates_valid_pat
+observes:
+- file
+- graph
+last-run: 2026-05-27T14:44:38.372710691+00:00
+last-run-duration: 0.5s
 ---
 
 ## Description

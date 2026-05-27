@@ -161,8 +161,9 @@ pub(crate) fn handle_feature_link(args: &Value, graph: &KnowledgeGraph) -> Resul
 
     let adr = args.get("adr").and_then(|v| v.as_str());
     let test = args.get("test").and_then(|v| v.as_str());
+    let pattern = args.get("pattern").and_then(|v| v.as_str());
 
-    let plan = crate::feature::plan_link(graph, id, adr, test)
+    let plan = crate::feature::plan_link_with_pattern(graph, id, adr, test, pattern)
         .map_err(|e| format!("{}", e))?;
     crate::feature::apply_link(&plan).map_err(|e| format!("{}", e))?;
 
@@ -209,11 +210,20 @@ fn build_link_response(id: &str, plan: &crate::feature::LinkPlan) -> Value {
         .iter()
         .map(|r| serde_json::json!({"id": r.id, "field": r.field}))
         .collect();
-    serde_json::json!({
+    let warnings_json: Vec<Value> = plan
+        .warnings
+        .iter()
+        .map(|w| serde_json::json!({"code": w.code, "message": w.message}))
+        .collect();
+    let mut resp = serde_json::json!({
         "id": id,
         "writes": writes_json,
         "reciprocated": reciprocated_json,
-    })
+    });
+    if !warnings_json.is_empty() {
+        resp["warnings"] = Value::Array(warnings_json);
+    }
+    resp
 }
 
 /// FT-066: `product_feature_status` writes the requested status to disk via

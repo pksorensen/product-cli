@@ -121,7 +121,7 @@ fn test_new_tool() -> ToolDef {
 fn feature_link_tool() -> ToolDef {
     ToolDef {
         name: "product_feature_link".to_string(),
-        description: "Link a feature to an ADR, test, dependency, or another feature (depends-on). Pass 'feature' for the lightweight one-shot depends-on add — the dedicated product_feature_depends_on tool is preferred for batch add/remove.".to_string(),
+        description: "Link a feature to an ADR, test, dependency, another feature (depends-on), or a pattern (FT-073). Pattern citation is bidirectional with `pattern.examples` (ADR-050).".to_string(),
         requires_write: true,
         input_schema: serde_json::json!({
             "type": "object",
@@ -130,7 +130,8 @@ fn feature_link_tool() -> ToolDef {
                 "adr": {"type": "string"},
                 "test": {"type": "string"},
                 "dep": {"type": "string"},
-                "feature": {"type": "string", "description": "Feature ID to add to depends-on. Cycle-checked. Idempotent."}
+                "feature": {"type": "string", "description": "Feature ID to add to depends-on. Cycle-checked. Idempotent."},
+                "pattern": {"type": "string", "description": "Pattern ID (PAT-XXX). Bidirectional with pattern.examples (FT-073, ADR-050)."}
             },
             "required": ["id"]
         }),

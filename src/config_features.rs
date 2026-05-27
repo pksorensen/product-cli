@@ -17,6 +17,12 @@ pub struct FeaturesConfig {
     /// Severity of W030 — `warning` (default) or `error`.
     #[serde(rename = "completeness-severity", default)]
     pub completeness_severity: CompletenessSeverity,
+    /// FT-073 / ADR-050: severity of the W035 advisory raised when a
+    /// non-trivial feature transitions to `in-progress` with zero entries in
+    /// `patterns:`. Defaults to `off`; teams that want to enforce pattern
+    /// citation set this to `warning` or `error`.
+    #[serde(rename = "patterns-required-severity", default)]
+    pub patterns_required_severity: PatternsRequiredSeverity,
 }
 
 impl Default for FeaturesConfig {
@@ -26,6 +32,7 @@ impl Default for FeaturesConfig {
             functional_spec_subsections: default_fs_subsections(),
             required_from_phase: default_required_from_phase(),
             completeness_severity: CompletenessSeverity::default(),
+            patterns_required_severity: PatternsRequiredSeverity::default(),
         }
     }
 }
@@ -57,6 +64,18 @@ fn default_required_from_phase() -> u32 { 1 }
 #[serde(rename_all = "lowercase")]
 pub enum CompletenessSeverity {
     #[default]
+    Warning,
+    Error,
+}
+
+/// `[features].patterns-required-severity` (FT-073, ADR-050) — `off` by
+/// default. Setting it to `warning` or `error` enables the W035 advisory
+/// for in-progress features with empty `patterns:`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PatternsRequiredSeverity {
+    #[default]
+    Off,
     Warning,
     Error,
 }

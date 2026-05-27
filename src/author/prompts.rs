@@ -22,6 +22,7 @@ pub struct PromptInfo {
 pub(crate) const DEFAULT_PROMPTS: &[(&str, &str, &str)] = &[
     ("author-feature", "author-feature-v1.md", "1"),
     ("author-adr", "author-adr-v1.md", "1"),
+    ("author-pattern", "author-pattern-v1.md", "1"),
     ("author-review", "author-review-v1.md", "1"),
     ("implement", "implement-v1.md", "1"),
     ("gap-analysis", "gap-analysis-v1.md", "1"),
@@ -139,6 +140,7 @@ pub(crate) fn default_content(name: &str) -> String {
     match name {
         "author-feature" => include_str!("prompts/author_feature.txt").to_string(),
         "author-adr" => include_str!("prompts/author_adr.txt").to_string(),
+        "author-pattern" => include_str!("prompts/author_pattern.txt").to_string(),
         "author-review" => include_str!("prompts/author_review.txt").to_string(),
         "implement" => include_str!("prompts/implement.txt").to_string(),
         "gap-analysis" => include_str!("prompts/gap_analysis.txt").to_string(),

@@ -1430,7 +1430,7 @@
 - [x] TC-837: mcp_graph_check_observes_findings_match_cli_json (scenario) — passing
 - [x] TC-838: ft_072_exit_criteria_observes_field (exit-criteria) — passing
 
-### FT-073 — Pattern Authoring — author pattern Session and Feature-Aware Pattern Suggestions [ ]
+### FT-073 — Pattern Authoring — author pattern Session and Feature-Aware Pattern Suggestions [x]
 
 - [x] ADR-050: Introduce Pattern (PAT) Artifact Type for Implementation Knowledge (accepted)
 - [x] ADR-022: Authoring Resources — System Prompts and Pre-Commit Review (accepted)
@@ -1446,14 +1446,14 @@
 - [x] ADR-047: Functional Specification Lives in Feature Body, Not a Separate Artifact (accepted)
 - [x] ADR-041: Removal & Deprecation Verification — Absence TCs and ADR `removes`/`deprecates` Fields (accepted)
 - [x] ADR-051: TC Observability Requirement — Causation Over Transaction (accepted)
-- [ ] TC-839: author_pattern_session_creates_valid_pat (scenario) — unimplemented
-- [ ] TC-840: author_feature_surfaces_matching_patterns_by_domain (scenario) — unimplemented
-- [ ] TC-841: feature_link_pattern_writes_bidirectional (scenario) — unimplemented
-- [ ] TC-842: mcp_feature_link_with_pattern_arg_writes_to_disk (scenario) — unimplemented
-- [ ] TC-843: mcp_pattern_new_in_authoring_session_writes_to_disk (scenario) — unimplemented
-- [ ] TC-844: graph_check_advisory_for_feature_with_no_patterns_when_enabled (scenario) — unimplemented
-- [ ] TC-845: feature_link_pattern_against_deprecated_pat_warns_but_writes (scenario) — unimplemented
-- [ ] TC-846: ft_073_exit_criteria_pattern_authoring (exit-criteria) — unimplemented
+- [x] TC-839: author_pattern_session_creates_valid_pat (scenario) — passing
+- [x] TC-840: author_feature_surfaces_matching_patterns_by_domain (scenario) — passing
+- [x] TC-841: feature_link_pattern_writes_bidirectional (scenario) — passing
+- [x] TC-842: mcp_feature_link_with_pattern_arg_writes_to_disk (scenario) — passing
+- [x] TC-843: mcp_pattern_new_in_authoring_session_writes_to_disk (scenario) — passing
+- [x] TC-844: graph_check_advisory_for_feature_with_no_patterns_when_enabled (scenario) — passing
+- [x] TC-845: feature_link_pattern_against_deprecated_pat_warns_but_writes (scenario) — passing
+- [x] TC-846: ft_073_exit_criteria_pattern_authoring (exit-criteria) — passing
 
 ### FT-074 — product implement Loads Patterns and Surfaces TC observes in the Executor Bundle [ ]
 

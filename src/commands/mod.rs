@@ -15,6 +15,7 @@ mod dispatch;
 mod drift;
 mod drift_diff;
 mod feature;
+mod feature_fields;
 mod feature_write;
 mod gap;
 mod graph_autolink;
