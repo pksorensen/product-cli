@@ -1,7 +1,7 @@
 ---
 id: ADR-051
 title: TC Observability Requirement — Causation Over Transaction
-status: proposed
+status: accepted
 features:
 - FT-070
 - FT-071
@@ -15,6 +15,7 @@ domains:
 - data-model
 - testing
 scope: cross-cutting
+content-hash: sha256:6fc8ce7c8ee24050183706e614b1825c03ada00b54aa5b312bf8948b7df530f9
 ---
 
 **Status:** Proposed

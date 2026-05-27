@@ -1,7 +1,7 @@
 ---
 id: ADR-050
 title: Introduce Pattern (PAT) Artifact Type for Implementation Knowledge
-status: proposed
+status: accepted
 features:
 - FT-070
 - FT-071
@@ -15,6 +15,7 @@ domains:
 - api
 - data-model
 scope: cross-cutting
+content-hash: sha256:1866c18be0da62755e1020aad5c78143b197ad55fd5950d61475c3ffee42206a
 ---
 
 **Status:** Proposed
