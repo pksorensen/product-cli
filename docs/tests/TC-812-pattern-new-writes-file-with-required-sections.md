@@ -6,7 +6,8 @@ status: unimplemented
 validates:
   features:
   - FT-070
-  adrs: []
+  adrs:
+  - ADR-050
 phase: 1
 runner: cargo-test
 runner-args: tc_812_pattern_new_writes_file_with_required_sections

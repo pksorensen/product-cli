@@ -6,7 +6,8 @@ status: unimplemented
 validates:
   features:
   - FT-070
-  adrs: []
+  adrs:
+  - ADR-050
 phase: 1
 runner: cargo-test
 runner-args: tc_814_pattern_link_example_materialises_feature_patterns

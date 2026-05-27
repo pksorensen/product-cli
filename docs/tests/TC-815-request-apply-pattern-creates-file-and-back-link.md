@@ -6,7 +6,8 @@ status: unimplemented
 validates:
   features:
   - FT-070
-  adrs: []
+  adrs:
+  - ADR-050
 phase: 1
 runner: cargo-test
 runner-args: tc_815_request_apply_pattern_creates_file_and_back_link

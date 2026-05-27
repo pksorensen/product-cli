@@ -6,7 +6,8 @@ status: unimplemented
 validates:
   features:
   - FT-070
-  adrs: []
+  adrs:
+  - ADR-050
 phase: 1
 runner: cargo-test
 runner-args: tc_819_ft_070_exit_criteria_pattern_crud_parity

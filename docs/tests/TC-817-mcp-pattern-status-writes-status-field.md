@@ -6,7 +6,8 @@ status: unimplemented
 validates:
   features:
   - FT-070
-  adrs: []
+  adrs:
+  - ADR-050
 phase: 1
 runner: cargo-test
 runner-args: tc_817_mcp_pattern_status_writes_status_field

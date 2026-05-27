@@ -53,8 +53,8 @@ pub enum GapCommands {
 }
 
 pub(crate) fn handle_gap(cmd: GapCommands, _global_fmt: &str) -> BoxResult {
-    let (_, root, graph) = load_graph()?;
-    let baseline_path = root.join("gaps.json");
+    let (config, root, graph) = load_graph()?;
+    let baseline_path = root.join(config.paths.gaps_resolved());
     let mut baseline = gap::GapBaseline::load(&baseline_path);
 
     match cmd {
@@ -161,11 +161,12 @@ fn gap_check_changed(
     root: &std::path::Path,
 ) -> BoxResult {
     let reports = gap::check_changed(graph, baseline, root);
+    let checked_adrs: Vec<String> = reports.iter().map(|r| r.adr.clone()).collect();
     let all_finding_ids: Vec<String> = reports
         .iter()
         .flat_map(|r| r.findings.iter().map(|f| f.id.clone()))
         .collect();
-    baseline.update_resolved(&all_finding_ids);
+    baseline.update_resolved(&checked_adrs, &all_finding_ids);
     baseline.save(baseline_path)?;
 
     print_gap_reports(&reports, format);
@@ -211,11 +212,12 @@ fn save_and_print_reports(
     baseline: &mut gap::GapBaseline,
     baseline_path: &std::path::Path,
 ) -> BoxResult {
+    let checked_adrs: Vec<String> = reports.iter().map(|r| r.adr.clone()).collect();
     let all_finding_ids: Vec<String> = reports
         .iter()
         .flat_map(|r| r.findings.iter().map(|f| f.id.clone()))
         .collect();
-    baseline.update_resolved(&all_finding_ids);
+    baseline.update_resolved(&checked_adrs, &all_finding_ids);
     baseline.save(baseline_path)?;
 
     print_gap_reports(reports, format);
