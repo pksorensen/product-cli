@@ -38,6 +38,7 @@ pub fn assign_ids(
     let mut next_adr = next_existing(&config.prefixes.adr, graph.adrs.keys());
     let mut next_tc = next_existing(&config.prefixes.test, graph.tests.keys());
     let mut next_dep = next_existing(&config.prefixes.dependency, graph.dependencies.keys());
+    let mut next_pat = next_existing(&config.prefixes.pattern, graph.patterns.keys());
 
     for &i in &order {
         let a = &artifacts[i];
@@ -46,6 +47,7 @@ pub fn assign_ids(
             ArtifactType::Adr => (&config.prefixes.adr, &mut next_adr),
             ArtifactType::Tc => (&config.prefixes.test, &mut next_tc),
             ArtifactType::Dep => (&config.prefixes.dependency, &mut next_dep),
+            ArtifactType::Pattern => (&config.prefixes.pattern, &mut next_pat),
         };
         let id = format!("{}-{:03}", prefix, *counter);
         *counter += 1;

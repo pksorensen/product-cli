@@ -2,7 +2,7 @@
 id: FT-070
 title: Pattern Artifact — Parse, Schema, CRUD
 phase: 5
-status: planned
+status: complete
 depends-on:
 - FT-003
 - FT-038

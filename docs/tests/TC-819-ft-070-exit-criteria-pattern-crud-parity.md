@@ -2,7 +2,7 @@
 id: TC-819
 title: ft_070_exit_criteria_pattern_crud_parity
 type: exit-criteria
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-070
@@ -11,6 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_819_ft_070_exit_criteria_pattern_crud_parity
+last-run: 2026-05-27T13:07:04.432943732+00:00
+last-run-duration: 0.3s
 ---
 
 ## Description

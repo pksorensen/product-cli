@@ -2,7 +2,7 @@
 id: TC-818
 title: pattern_status_to_live_clears_deprecated_by
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-070
@@ -11,6 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_818_pattern_status_to_live_clears_deprecated_by
+last-run: 2026-05-27T13:07:04.432943732+00:00
+last-run-duration: 0.4s
 ---
 
 ## Description

@@ -7,11 +7,37 @@ pub(super) fn all() -> Vec<ToolDef> {
     let mut tools = product_tools();
     tools.extend(feature_tools());
     tools.extend(adr_and_test_tools());
+    tools.extend(pattern_read_tools());
     tools.extend(graph_tools());
     tools.extend(health_tools());
     tools.extend(agent_context_tools());
     tools.extend(prompts_tools());
     tools
+}
+
+// Read tools: patterns (FT-070, ADR-050)
+fn pattern_read_tools() -> Vec<ToolDef> {
+    vec![
+        ToolDef {
+            name: "product_pattern_list".to_string(),
+            description: "List patterns, optionally filtered by status (live | deprecated).".to_string(),
+            requires_write: false,
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {"status": {"type": "string"}}
+            }),
+        },
+        ToolDef {
+            name: "product_pattern_show".to_string(),
+            description: "Show a pattern's front-matter, links, and body.".to_string(),
+            requires_write: false,
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {"id": {"type": "string"}},
+                "required": ["id"]
+            }),
+        },
+    ]
 }
 
 // Read tools: product identity (FT-039)

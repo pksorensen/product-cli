@@ -2,7 +2,7 @@
 id: TC-815
 title: request_apply_pattern_creates_file_and_back_link
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-070
@@ -11,6 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_815_request_apply_pattern_creates_file_and_back_link
+last-run: 2026-05-27T13:07:04.432943732+00:00
+last-run-duration: 0.3s
 ---
 
 ## Description

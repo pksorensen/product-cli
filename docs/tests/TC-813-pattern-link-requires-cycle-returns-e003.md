@@ -2,7 +2,7 @@
 id: TC-813
 title: pattern_link_requires_cycle_returns_e003
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-070
@@ -11,6 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_813_pattern_link_requires_cycle_returns_e003
+last-run: 2026-05-27T13:07:04.432943732+00:00
+last-run-duration: 0.4s
 ---
 
 ## Description

@@ -10,6 +10,7 @@ use super::{JsonRpcRequest, JsonRpcResponse};
 use super::adr_lifecycle;
 use super::field_handlers;
 use super::health_handlers;
+use super::pattern_handlers;
 use super::read_handlers;
 use super::write_handlers;
 
@@ -118,9 +119,22 @@ fn load_graph(repo_root: &Path) -> Result<KnowledgeGraph, String> {
     let adrs_dir = config.resolve_path(repo_root, &config.paths.adrs);
     let tests_dir = config.resolve_path(repo_root, &config.paths.tests);
     let deps_dir = config.resolve_path(repo_root, &config.paths.dependencies);
-    let loaded = crate::parser::load_all_with_deps(&features_dir, &adrs_dir, &tests_dir, Some(&deps_dir))
-        .map_err(|e| format!("{}", e))?;
-    Ok(KnowledgeGraph::build_with_deps(loaded.features, loaded.adrs, loaded.tests, loaded.dependencies))
+    let patterns_dir = config.resolve_path(repo_root, &config.paths.patterns);
+    let loaded = crate::parser::load_all_full(
+        &features_dir,
+        &adrs_dir,
+        &tests_dir,
+        Some(&deps_dir),
+        Some(&patterns_dir),
+    )
+    .map_err(|e| format!("{}", e))?;
+    Ok(KnowledgeGraph::build_full(
+        loaded.features,
+        loaded.adrs,
+        loaded.tests,
+        loaded.dependencies,
+        loaded.patterns,
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -185,6 +199,12 @@ fn dispatch_tool(
         "product_adr_supersede" => field_handlers::handle_adr_supersede(args, graph),
         "product_adr_source_files" => field_handlers::handle_adr_source_files(args, graph, repo_root),
         "product_test_runner" => field_handlers::handle_test_runner(args, graph, repo_root),
+        // Pattern tools (FT-070, ADR-050)
+        "product_pattern_new" => pattern_handlers::handle_pattern_new(args, graph, repo_root),
+        "product_pattern_status" => pattern_handlers::handle_pattern_status(args, graph),
+        "product_pattern_link" => pattern_handlers::handle_pattern_link(args, graph),
+        "product_pattern_list" => pattern_handlers::handle_pattern_list(args, graph),
+        "product_pattern_show" => pattern_handlers::handle_pattern_show(args, graph),
         // Request tools (FT-041, ADR-038, FT-064)
         "product_request_validate" => super::request_handlers::handle_request_validate(args, repo_root),
         "product_request_apply" => super::request_handlers::handle_request_apply(args, repo_root),

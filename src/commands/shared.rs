@@ -36,19 +36,26 @@ pub(crate) fn load_graph_typed(
     let adrs_dir = config.resolve_path(&root, &config.paths.adrs);
     let tests_dir = config.resolve_path(&root, &config.paths.tests);
     let deps_dir = config.resolve_path(&root, &config.paths.dependencies);
+    let patterns_dir = config.resolve_path(&root, &config.paths.patterns);
 
-    let loaded =
-        parser::load_all_with_deps(&features_dir, &adrs_dir, &tests_dir, Some(&deps_dir))?;
+    let loaded = parser::load_all_full(
+        &features_dir,
+        &adrs_dir,
+        &tests_dir,
+        Some(&deps_dir),
+        Some(&patterns_dir),
+    )?;
 
     for e in &loaded.parse_errors {
         eprintln!("{}", e);
     }
 
-    let graph = KnowledgeGraph::build_with_deps(
+    let graph = KnowledgeGraph::build_full(
         loaded.features,
         loaded.adrs,
         loaded.tests,
         loaded.dependencies,
+        loaded.patterns,
     )
     .with_parse_errors(loaded.parse_errors);
     Ok((config, root, graph))

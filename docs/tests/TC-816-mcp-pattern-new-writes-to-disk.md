@@ -2,7 +2,7 @@
 id: TC-816
 title: mcp_pattern_new_writes_to_disk
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-070
@@ -11,6 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_816_mcp_pattern_new_writes_to_disk
+last-run: 2026-05-27T13:07:04.432943732+00:00
+last-run-duration: 0.2s
 ---
 
 ## Description

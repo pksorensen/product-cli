@@ -33,6 +33,10 @@ pub struct PathsConfig {
     /// back to `gaps.json` at the repo root.
     #[serde(default)]
     pub gaps: Option<String>,
+    /// Pattern artifact directory (FT-070, ADR-050).
+    /// Defaults to `docs/patterns`.
+    #[serde(default = "default_patterns_path")]
+    pub patterns: String,
 }
 
 impl Default for PathsConfig {
@@ -47,6 +51,7 @@ impl Default for PathsConfig {
             requests: default_requests_path(),
             prompts: None,
             gaps: None,
+            patterns: default_patterns_path(),
         }
     }
 }
@@ -58,6 +63,7 @@ fn default_graph_path() -> String { "docs/graph".into() }
 fn default_checklist_path() -> String { "docs/checklist.md".into() }
 fn default_dependencies_path() -> String { "docs/dependencies".into() }
 fn default_requests_path() -> String { "requests.jsonl".into() }
+fn default_patterns_path() -> String { "docs/patterns".into() }
 
 impl PathsConfig {
     /// Resolved prompts directory — `[paths].prompts` if set, else

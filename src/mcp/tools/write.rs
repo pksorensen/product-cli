@@ -10,8 +10,62 @@ pub(super) fn all() -> Vec<ToolDef> {
     tools.extend(field_test_tools());
     tools.extend(status_tools());
     tools.extend(adr_lifecycle_tools());
+    tools.extend(pattern_tools());
     tools.extend(request_tools());
     tools
+}
+
+// Pattern lifecycle tools (FT-070, ADR-050)
+fn pattern_tools() -> Vec<ToolDef> {
+    vec![pattern_new_tool(), pattern_status_tool(), pattern_link_tool()]
+}
+
+fn pattern_new_tool() -> ToolDef {
+    ToolDef {
+        name: "product_pattern_new".to_string(),
+        description: "Scaffold a new pattern file under `[paths].patterns` with the configured H2 sections (FT-070).".to_string(),
+        requires_write: true,
+        input_schema: serde_json::json!({
+            "type": "object",
+            "properties": {"title": {"type": "string"}},
+            "required": ["title"]
+        }),
+    }
+}
+
+fn pattern_status_tool() -> ToolDef {
+    ToolDef {
+        name: "product_pattern_status".to_string(),
+        description: "Transition a pattern between `live` and `deprecated`. When deprecating, optionally name the successor with `deprecated_by`.".to_string(),
+        requires_write: true,
+        input_schema: serde_json::json!({
+            "type": "object",
+            "properties": {
+                "id": {"type": "string"},
+                "status": {"type": "string", "enum": ["live", "deprecated"]},
+                "deprecated_by": {"type": "string"}
+            },
+            "required": ["id", "status"]
+        }),
+    }
+}
+
+fn pattern_link_tool() -> ToolDef {
+    ToolDef {
+        name: "product_pattern_link".to_string(),
+        description: "Link the pattern to an ADR, a prerequisite pattern (requires cycle check), or an example feature (bidirectional materialisation per ADR-050).".to_string(),
+        requires_write: true,
+        input_schema: serde_json::json!({
+            "type": "object",
+            "properties": {
+                "id": {"type": "string"},
+                "adr": {"type": "string"},
+                "requires": {"type": "string"},
+                "example": {"type": "string"}
+            },
+            "required": ["id"]
+        }),
+    }
 }
 
 // Write tools: creating new artifacts

@@ -163,12 +163,14 @@ pub fn parse_dependency(path: &Path) -> Result<Dependency> {
     })
 }
 
-/// Result of loading all artifacts: features, ADRs, tests, dependencies, and any parse errors.
+/// Result of loading all artifacts: features, ADRs, tests, dependencies,
+/// patterns, and any parse errors.
 pub struct LoadResult {
     pub features: Vec<Feature>,
     pub adrs: Vec<Adr>,
     pub tests: Vec<TestCriterion>,
     pub dependencies: Vec<Dependency>,
+    pub patterns: Vec<Pattern>,
     pub parse_errors: Vec<ProductError>,
 }
 
@@ -190,6 +192,18 @@ pub fn load_all_with_deps(
     tests_dir: &Path,
     deps_dir: Option<&Path>,
 ) -> Result<LoadResult> {
+    load_all_full(features_dir, adrs_dir, tests_dir, deps_dir, None)
+}
+
+/// Load every artifact type — features, ADRs, TCs, deps, and patterns
+/// (FT-070). Patterns are loaded only when `patterns_dir` is supplied.
+pub fn load_all_full(
+    features_dir: &Path,
+    adrs_dir: &Path,
+    tests_dir: &Path,
+    deps_dir: Option<&Path>,
+    patterns_dir: Option<&Path>,
+) -> Result<LoadResult> {
     let (features, mut errs_f) = load_dir(features_dir, parse_feature)?;
     let (adrs, mut errs_a) = load_dir(adrs_dir, parse_adr)?;
     let (tests, errs_t) = load_dir(tests_dir, parse_test)?;
@@ -198,14 +212,21 @@ pub fn load_all_with_deps(
     } else {
         (Vec::new(), Vec::new())
     };
+    let (patterns, errs_p) = if let Some(p) = patterns_dir {
+        load_dir(p, parse_pattern)?
+    } else {
+        (Vec::new(), Vec::new())
+    };
     errs_f.append(&mut errs_a);
     errs_f.extend(errs_t);
     errs_f.extend(errs_d);
+    errs_f.extend(errs_p);
     Ok(LoadResult {
         features,
         adrs,
         tests,
         dependencies,
+        patterns,
         parse_errors: errs_f,
     })
 }
@@ -259,6 +280,41 @@ pub fn render_dependency(front: &DependencyFrontMatter, body: &str) -> String {
     format!("---\n{}---\n\n{}", yaml, body)
 }
 
+/// Serialize pattern front-matter + body to a markdown file string (FT-070).
+pub fn render_pattern(front: &PatternFrontMatter, body: &str) -> String {
+    let yaml = serde_yaml::to_string(front).unwrap_or_default();
+    format!("---\n{}---\n\n{}", yaml, body)
+}
+
+/// Parse a pattern file (FT-070, ADR-050).
+pub fn parse_pattern(path: &Path) -> Result<Pattern> {
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| ProductError::IoError(format!("{}: {}", path.display(), e)))?;
+    let (yaml, body) = split_front_matter(&content).ok_or_else(|| ProductError::ParseError {
+        file: path.to_path_buf(),
+        line: Some(1),
+        message: "no YAML front-matter found".to_string(),
+    })?;
+    let front: PatternFrontMatter =
+        serde_yaml::from_str(yaml).map_err(|e| ProductError::ParseError {
+            file: path.to_path_buf(),
+            line: e.location().map(|l| l.line()),
+            message: format!("YAML parse error: {}", e),
+        })?;
+    if front.id.is_empty() {
+        return Err(ProductError::MissingField {
+            file: path.to_path_buf(),
+            field: "id".to_string(),
+        });
+    }
+    validate_id(&front.id, path)?;
+    Ok(Pattern {
+        front,
+        body: body.to_string(),
+        path: path.to_path_buf(),
+    })
+}
+
 /// Extract the next sequential ID from a list of existing IDs
 pub fn next_id(prefix: &str, existing: &[String]) -> String {
     let max_num = existing
@@ -290,94 +346,5 @@ pub fn id_to_filename(id: &str, title: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_split_front_matter() {
-        let content = "---\nid: FT-001\ntitle: Test\n---\n\nBody content here.";
-        let (yaml, body) = split_front_matter(content).unwrap();
-        assert!(yaml.contains("id: FT-001"));
-        assert_eq!(body, "Body content here.");
-    }
-
-    #[test]
-    fn test_split_no_front_matter() {
-        let content = "No front matter here.";
-        assert!(split_front_matter(content).is_none());
-    }
-
-    #[test]
-    fn test_next_id() {
-        let existing = vec!["FT-001".to_string(), "FT-003".to_string()];
-        assert_eq!(next_id("FT", &existing), "FT-004");
-    }
-
-    #[test]
-    fn test_next_id_empty() {
-        let existing: Vec<String> = vec![];
-        assert_eq!(next_id("ADR", &existing), "ADR-001");
-    }
-
-    #[test]
-    fn test_id_to_filename() {
-        assert_eq!(id_to_filename("FT-001", "Cluster Foundation"), "FT-001-cluster-foundation.md");
-        assert_eq!(id_to_filename("ADR-002", "openraft for Consensus"), "ADR-002-openraft-for-consensus.md");
-    }
-
-    #[test]
-    fn test_feature_parse_roundtrip() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("FT-001-test.md");
-        let content = "---\nid: FT-001\ntitle: Test Feature\nphase: 1\nstatus: in-progress\ndepends-on: []\nadrs: [ADR-001]\ntests: [TC-001]\n---\n\nFeature body.\n";
-        std::fs::write(&path, content).unwrap();
-        let feature = parse_feature(&path).unwrap();
-        assert_eq!(feature.front.id, "FT-001");
-        assert_eq!(feature.front.title, "Test Feature");
-        assert_eq!(feature.front.status, FeatureStatus::InProgress);
-        assert_eq!(feature.front.adrs, vec!["ADR-001"]);
-        assert_eq!(feature.body, "Feature body.\n");
-    }
-
-    #[test]
-    fn test_adr_parse() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("ADR-001-test.md");
-        let content = "---\nid: ADR-001\ntitle: Test ADR\nstatus: accepted\nfeatures: [FT-001]\nsupersedes: []\nsuperseded-by: []\n---\n\nDecision body.\n";
-        std::fs::write(&path, content).unwrap();
-        let adr = parse_adr(&path).unwrap();
-        assert_eq!(adr.front.id, "ADR-001");
-        assert_eq!(adr.front.status, AdrStatus::Accepted);
-    }
-
-    #[test]
-    fn test_test_parse() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("TC-001-test.md");
-        let content = "---\nid: TC-001\ntitle: Test Criterion\ntype: scenario\nstatus: unimplemented\nvalidates:\n  features: [FT-001]\n  adrs: [ADR-001]\nphase: 1\n---\n\nDescription.\n";
-        std::fs::write(&path, content).unwrap();
-        let tc = parse_test(&path).unwrap();
-        assert_eq!(tc.front.id, "TC-001");
-        assert_eq!(tc.front.test_type, TestType::Scenario);
-        assert_eq!(tc.front.validates.features, vec!["FT-001"]);
-    }
-
-    #[test]
-    fn validate_id_valid() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("test.md");
-        assert!(validate_id("FT-001", &path).is_ok());
-        assert!(validate_id("ADR-123", &path).is_ok());
-        assert!(validate_id("TC-0001", &path).is_ok());
-    }
-
-    #[test]
-    fn validate_id_invalid() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("test.md");
-        assert!(validate_id("bad-id", &path).is_err());
-        assert!(validate_id("FT001", &path).is_err());
-        assert!(validate_id("FT-1", &path).is_err()); // needs 3+ digits
-        assert!(validate_id("", &path).is_err());
-    }
-}
+#[path = "parser_tests.rs"]
+mod tests;

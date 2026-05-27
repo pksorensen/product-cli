@@ -133,6 +133,8 @@ fn resolve_target_artifact_type(
         Some(ArtifactType::Tc)
     } else if ctx.graph.dependencies.contains_key(&c.target) {
         Some(ArtifactType::Dep)
+    } else if ctx.graph.patterns.contains_key(&c.target) {
+        Some(ArtifactType::Pattern)
     } else {
         None
     }

@@ -29,6 +29,7 @@ mod metrics_cmd;
 mod migrate;
 mod onboard;
 mod output;
+mod pattern;
 mod preflight;
 mod prompts_cmd;
 mod request_builder_add;
@@ -60,6 +61,7 @@ pub use self::hash::HashCommands;
 pub use self::metrics_cmd::MetricsCommands;
 pub use self::migrate::MigrateCommands;
 pub use self::onboard::OnboardCommands;
+pub use self::pattern::PatternCommands;
 pub use self::prompts_cmd::PromptsCommands;
 
 #[derive(Subcommand)]
@@ -278,6 +280,11 @@ pub enum Commands {
     Onboard {
         #[command(subcommand)]
         command: OnboardCommands,
+    },
+    /// Pattern artifact management (FT-070, ADR-050)
+    Pattern {
+        #[command(subcommand)]
+        command: PatternCommands,
     },
     /// Pre-flight analysis — check domain and cross-cutting coverage
     Preflight {

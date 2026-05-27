@@ -70,6 +70,18 @@ pub fn plan_writes(
 
     bidirectional::materialize(request, ref_to_id, &mut new_maps);
 
+    // FT-070 / ADR-050: reciprocate `pattern.examples` onto **existing**
+    // feature files in `mutated_maps`. The in-batch materialiser above
+    // covers newly-created features; this pass handles the case where the
+    // example FT-NNN already lives on disk.
+    materialize_pattern_examples_onto_existing(
+        request,
+        &new_maps,
+        &existing_paths,
+        &mut mutated_maps,
+        &mut mutation_counts,
+    )?;
+
     // Apply changes — either to new maps or to loaded existing files.
     for c in &request.changes {
         let target_id = if let Some(ref_name) = strip_ref_prefix(&c.target) {
@@ -181,6 +193,7 @@ fn dir_for_artifact_type(t: ArtifactType, config: &ProductConfig, repo_root: &Pa
         ArtifactType::Adr => config.resolve_path(repo_root, &config.paths.adrs),
         ArtifactType::Tc => config.resolve_path(repo_root, &config.paths.tests),
         ArtifactType::Dep => config.resolve_path(repo_root, &config.paths.dependencies),
+        ArtifactType::Pattern => config.resolve_path(repo_root, &config.paths.patterns),
     }
 }
 
@@ -227,3 +240,60 @@ fn split_front_matter(content: &str) -> Option<(&str, &str)> {
 }
 
 pub mod bidirectional;
+
+/// FT-070 / ADR-050: for each newly-created pattern with non-empty
+/// `examples:`, append the pattern's id to the existing feature's
+/// `patterns:` array. Materialises the back-link onto existing files.
+fn materialize_pattern_examples_onto_existing(
+    request: &Request,
+    new_maps: &HashMap<usize, Mapping>,
+    existing_paths: &HashMap<String, PathBuf>,
+    mutated_maps: &mut BTreeMap<String, Mapping>,
+    mutation_counts: &mut HashMap<String, usize>,
+) -> Result<(), Vec<Finding>> {
+    for a in &request.artifacts {
+        if a.artifact_type != ArtifactType::Pattern {
+            continue;
+        }
+        let Some(new_map) = new_maps.get(&a.index) else {
+            continue;
+        };
+        let pat_id = match new_map.get(Value::String("id".into())) {
+            Some(Value::String(s)) => s.clone(),
+            _ => continue,
+        };
+        let examples = match new_map.get(Value::String("examples".into())) {
+            Some(Value::Sequence(seq)) => seq.clone(),
+            _ => continue,
+        };
+        for ex in examples {
+            let Value::String(feat_id) = ex else { continue };
+            if !existing_paths.contains_key(&feat_id) {
+                continue;
+            }
+            if !mutated_maps.contains_key(&feat_id) {
+                let m = load_existing_front(&existing_paths[&feat_id])?;
+                mutated_maps.insert(feat_id.clone(), m);
+            }
+            let map = mutated_maps.get_mut(&feat_id).expect("present");
+            append_to_string_list(map, "patterns", &pat_id);
+            *mutation_counts.entry(feat_id.clone()).or_insert(0) += 1;
+        }
+    }
+    Ok(())
+}
+
+/// Append `id` to the YAML list at `key`, deduplicating. Creates the list
+/// if absent.
+fn append_to_string_list(m: &mut Mapping, key: &str, id: &str) {
+    let k = Value::String(key.into());
+    let mut seq = match m.get(&k).cloned() {
+        Some(Value::Sequence(s)) => s,
+        _ => Vec::new(),
+    };
+    let candidate = Value::String(id.to_string());
+    if !seq.contains(&candidate) {
+        seq.push(candidate);
+    }
+    m.insert(k, Value::Sequence(seq));
+}

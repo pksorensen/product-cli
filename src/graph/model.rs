@@ -48,6 +48,8 @@ pub struct KnowledgeGraph {
     pub adrs: HashMap<String, Adr>,
     pub tests: HashMap<String, TestCriterion>,
     pub dependencies: HashMap<String, crate::types::Dependency>,
+    /// Pattern artifacts (FT-070, ADR-050). Keyed by PAT id.
+    pub patterns: HashMap<String, crate::types::Pattern>,
     pub edges: Vec<Edge>,
     // Adjacency lists
     pub forward: HashMap<String, Vec<(String, EdgeType)>>,
@@ -75,11 +77,23 @@ impl KnowledgeGraph {
         tests: Vec<TestCriterion>,
         deps: Vec<crate::types::Dependency>,
     ) -> Self {
+        Self::build_full(features, adrs, tests, deps, Vec::new())
+    }
+
+    /// Build graph from every artifact type, including patterns (FT-070).
+    pub fn build_full(
+        features: Vec<Feature>,
+        adrs: Vec<Adr>,
+        tests: Vec<TestCriterion>,
+        deps: Vec<crate::types::Dependency>,
+        patterns: Vec<crate::types::Pattern>,
+    ) -> Self {
         let mut graph = Self {
             features: HashMap::new(),
             adrs: HashMap::new(),
             tests: HashMap::new(),
             dependencies: HashMap::new(),
+            patterns: HashMap::new(),
             edges: Vec::new(),
             forward: HashMap::new(),
             reverse: HashMap::new(),
@@ -105,6 +119,10 @@ impl KnowledgeGraph {
         for d in deps {
             id_paths.entry(d.front.id.clone()).or_default().push(d.path.clone());
             graph.dependencies.insert(d.front.id.clone(), d);
+        }
+        for p in patterns {
+            id_paths.entry(p.front.id.clone()).or_default().push(p.path.clone());
+            graph.patterns.insert(p.front.id.clone(), p);
         }
 
         // Record any IDs that appear in more than one file
@@ -195,6 +213,7 @@ impl KnowledgeGraph {
         ids.extend(self.adrs.keys().cloned());
         ids.extend(self.tests.keys().cloned());
         ids.extend(self.dependencies.keys().cloned());
+        ids.extend(self.patterns.keys().cloned());
         ids
     }
 }

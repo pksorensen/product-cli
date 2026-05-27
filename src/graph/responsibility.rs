@@ -162,6 +162,7 @@ mod tests {
                 tests: vec![],
                 domains: vec![],
                 domains_acknowledged: std::collections::HashMap::new(),
+                patterns: vec![],
                 due_date: None,
                 bundle: None,
             },

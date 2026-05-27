@@ -1352,9 +1352,9 @@
 - [x] TC-810: mcp_graph_check_json_equals_cli_graph_check_json (invariant) — passing
 - [x] TC-811: ft_069_exit_criteria (exit-criteria) — passing
 
-### FT-070 — Pattern Artifact — Parse, Schema, CRUD [ ]
+### FT-070 — Pattern Artifact — Parse, Schema, CRUD [x]
 
-- [ ] ADR-050: Introduce Pattern (PAT) Artifact Type for Implementation Knowledge (proposed)
+- [x] ADR-050: Introduce Pattern (PAT) Artifact Type for Implementation Knowledge (accepted)
 - [x] ADR-002: YAML Front-Matter as the Graph Source of Truth (accepted)
 - [x] ADR-038: Product Request — Unified Atomic Write Interface (accepted)
 - [x] ADR-043: Slice + Adapter Architecture for Command Handlers (accepted)
@@ -1364,23 +1364,23 @@
 - [x] ADR-018: Testing Strategy — Property-Based, Session-Based, and LLM Benchmark (accepted)
 - [x] ADR-047: Functional Specification Lives in Feature Body, Not a Separate Artifact (accepted)
 - [x] ADR-048: Canonical Repository Layout — All Product State Under `.product/` (accepted)
-- [ ] ADR-051: TC Observability Requirement — Causation Over Transaction (proposed)
+- [x] ADR-051: TC Observability Requirement — Causation Over Transaction (accepted)
 - [x] ADR-040: Unified Verify Pipeline and the LLM Boundary (accepted)
 - [x] ADR-041: Removal & Deprecation Verification — Absence TCs and ADR `removes`/`deprecates` Fields (accepted)
 - [x] ADR-042: TC Type System — Reserved Structural Types and Open Descriptive Types (accepted)
 - [x] ADR-049: Per-Model Context Bundle Templates as Data Files (accepted)
-- [ ] TC-812: pattern_new_writes_file_with_required_sections (scenario) — unimplemented
-- [ ] TC-813: pattern_link_requires_cycle_returns_e003 (scenario) — unimplemented
-- [ ] TC-814: pattern_link_example_materialises_feature_patterns (scenario) — unimplemented
-- [ ] TC-815: request_apply_pattern_creates_file_and_back_link (scenario) — unimplemented
-- [ ] TC-816: mcp_pattern_new_writes_to_disk (scenario) — unimplemented
-- [ ] TC-817: mcp_pattern_status_writes_status_field (scenario) — unimplemented
-- [ ] TC-818: pattern_status_to_live_clears_deprecated_by (scenario) — unimplemented
-- [ ] TC-819: ft_070_exit_criteria_pattern_crud_parity (exit-criteria) — unimplemented
+- [x] TC-812: pattern_new_writes_file_with_required_sections (scenario) — passing
+- [x] TC-813: pattern_link_requires_cycle_returns_e003 (scenario) — passing
+- [x] TC-814: pattern_link_example_materialises_feature_patterns (scenario) — passing
+- [x] TC-815: request_apply_pattern_creates_file_and_back_link (scenario) — passing
+- [x] TC-816: mcp_pattern_new_writes_to_disk (scenario) — passing
+- [x] TC-817: mcp_pattern_status_writes_status_field (scenario) — passing
+- [x] TC-818: pattern_status_to_live_clears_deprecated_by (scenario) — passing
+- [x] TC-819: ft_070_exit_criteria_pattern_crud_parity (exit-criteria) — passing
 
 ### FT-071 — Pattern Participation in Graph Algorithms — Context, Impact, Centrality, Validation [ ]
 
-- [ ] ADR-050: Introduce Pattern (PAT) Artifact Type for Implementation Knowledge (proposed)
+- [x] ADR-050: Introduce Pattern (PAT) Artifact Type for Implementation Knowledge (accepted)
 - [x] ADR-012: Graph Theory Foundations for Navigation, Context, and Impact Analysis (accepted)
 - [x] ADR-006: Context Bundle as the Primary LLM Interface (accepted)
 - [x] ADR-020: MCP Server — Dual Transport (stdio and HTTP) (accepted)
@@ -1392,7 +1392,7 @@
 - [x] ADR-042: TC Type System — Reserved Structural Types and Open Descriptive Types (accepted)
 - [x] ADR-040: Unified Verify Pipeline and the LLM Boundary (accepted)
 - [x] ADR-047: Functional Specification Lives in Feature Body, Not a Separate Artifact (accepted)
-- [ ] ADR-051: TC Observability Requirement — Causation Over Transaction (proposed)
+- [x] ADR-051: TC Observability Requirement — Causation Over Transaction (accepted)
 - [x] ADR-041: Removal & Deprecation Verification — Absence TCs and ADR `removes`/`deprecates` Fields (accepted)
 - [ ] TC-820: context_bundle_includes_patterns_in_topo_order (scenario) — unimplemented
 - [ ] TC-821: context_bundle_measure_writes_patterns_count (scenario) — unimplemented
@@ -1407,8 +1407,8 @@
 
 ### FT-072 — TC Observability Requirement — observes Field and graph check Validation [ ]
 
-- [ ] ADR-051: TC Observability Requirement — Causation Over Transaction (proposed)
-- [ ] ADR-050: Introduce Pattern (PAT) Artifact Type for Implementation Knowledge (proposed)
+- [x] ADR-051: TC Observability Requirement — Causation Over Transaction (accepted)
+- [x] ADR-050: Introduce Pattern (PAT) Artifact Type for Implementation Knowledge (accepted)
 - [x] ADR-002: YAML Front-Matter as the Graph Source of Truth (accepted)
 - [x] ADR-013: Error Model and User-Facing Error Format (accepted)
 - [x] ADR-018: Testing Strategy — Property-Based, Session-Based, and LLM Benchmark (accepted)
@@ -1432,7 +1432,7 @@
 
 ### FT-073 — Pattern Authoring — author pattern Session and Feature-Aware Pattern Suggestions [ ]
 
-- [ ] ADR-050: Introduce Pattern (PAT) Artifact Type for Implementation Knowledge (proposed)
+- [x] ADR-050: Introduce Pattern (PAT) Artifact Type for Implementation Knowledge (accepted)
 - [x] ADR-022: Authoring Resources — System Prompts and Pre-Commit Review (accepted)
 - [x] ADR-020: MCP Server — Dual Transport (stdio and HTTP) (accepted)
 - [x] ADR-043: Slice + Adapter Architecture for Command Handlers (accepted)
@@ -1445,7 +1445,7 @@
 - [x] ADR-048: Canonical Repository Layout — All Product State Under `.product/` (accepted)
 - [x] ADR-047: Functional Specification Lives in Feature Body, Not a Separate Artifact (accepted)
 - [x] ADR-041: Removal & Deprecation Verification — Absence TCs and ADR `removes`/`deprecates` Fields (accepted)
-- [ ] ADR-051: TC Observability Requirement — Causation Over Transaction (proposed)
+- [x] ADR-051: TC Observability Requirement — Causation Over Transaction (accepted)
 - [ ] TC-839: author_pattern_session_creates_valid_pat (scenario) — unimplemented
 - [ ] TC-840: author_feature_surfaces_matching_patterns_by_domain (scenario) — unimplemented
 - [ ] TC-841: feature_link_pattern_writes_bidirectional (scenario) — unimplemented
@@ -1457,8 +1457,8 @@
 
 ### FT-074 — product implement Loads Patterns and Surfaces TC observes in the Executor Bundle [ ]
 
-- [ ] ADR-050: Introduce Pattern (PAT) Artifact Type for Implementation Knowledge (proposed)
-- [ ] ADR-051: TC Observability Requirement — Causation Over Transaction (proposed)
+- [x] ADR-050: Introduce Pattern (PAT) Artifact Type for Implementation Knowledge (accepted)
+- [x] ADR-051: TC Observability Requirement — Causation Over Transaction (accepted)
 - [x] ADR-006: Context Bundle as the Primary LLM Interface (accepted)
 - [x] ADR-021: Implementation Pipeline — `product verify` and the Knowledge Boundary (accepted)
 - [x] ADR-022: Authoring Resources — System Prompts and Pre-Commit Review (accepted)
@@ -1480,8 +1480,8 @@
 
 ### FT-075 — Seed Pattern Catalog — PAT-001 Slice + Adapter, PAT-002 MCP Tool With Disk Side-Effect, PAT-003 TC Observability [ ]
 
-- [ ] ADR-050: Introduce Pattern (PAT) Artifact Type for Implementation Knowledge (proposed)
-- [ ] ADR-051: TC Observability Requirement — Causation Over Transaction (proposed)
+- [x] ADR-050: Introduce Pattern (PAT) Artifact Type for Implementation Knowledge (accepted)
+- [x] ADR-051: TC Observability Requirement — Causation Over Transaction (accepted)
 - [x] ADR-043: Slice + Adapter Architecture for Command Handlers (accepted)
 - [x] ADR-020: MCP Server — Dual Transport (stdio and HTTP) (accepted)
 - [x] ADR-038: Product Request — Unified Atomic Write Interface (accepted)

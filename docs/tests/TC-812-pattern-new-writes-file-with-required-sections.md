@@ -2,7 +2,7 @@
 id: TC-812
 title: pattern_new_writes_file_with_required_sections
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-070
@@ -11,6 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_812_pattern_new_writes_file_with_required_sections
+last-run: 2026-05-27T13:07:04.432943732+00:00
+last-run-duration: 0.3s
 ---
 
 ## Description

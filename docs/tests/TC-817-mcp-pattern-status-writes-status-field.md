@@ -2,7 +2,7 @@
 id: TC-817
 title: mcp_pattern_status_writes_status_field
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-070
@@ -11,6 +11,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_817_mcp_pattern_status_writes_status_field
+last-run: 2026-05-27T13:07:04.432943732+00:00
+last-run-duration: 0.3s
 ---
 
 ## Description

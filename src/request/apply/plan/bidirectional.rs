@@ -100,6 +100,21 @@ pub fn materialize(
                 }
             }
             ArtifactType::Dep => {}
+            ArtifactType::Pattern => {
+                // FT-070: pattern.examples lists features that exemplify the
+                // pattern. Reciprocate by adding the pattern id to each
+                // example feature's patterns array (ADR-050).
+                for tref in extract_ref_targets(&a.fields, "examples") {
+                    if let Some(tidx) = ref_to_index.get(&tref) {
+                        deltas.push(Delta {
+                            target_idx: *tidx,
+                            key: "patterns".into(),
+                            is_validates_inner: false,
+                            ids_to_add: vec![this_id.clone()],
+                        });
+                    }
+                }
+            }
         }
     }
 

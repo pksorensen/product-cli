@@ -8,6 +8,7 @@ pub mod registry;
 mod adr_lifecycle;
 mod field_handlers;
 mod health_handlers;
+mod pattern_handlers;
 mod read_handlers;
 mod request_handlers;
 mod write_handlers;

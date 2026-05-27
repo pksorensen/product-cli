@@ -54,6 +54,7 @@ fn schema_prompt_covers_feature_fields() {
         tests: vec![],
         domains: vec![],
         domains_acknowledged: Default::default(),
+        patterns: vec![],
         due_date: None,
         bundle: None,
     };

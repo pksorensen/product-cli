@@ -3,7 +3,7 @@
 use super::super::types::*;
 use crate::parser;
 use crate::types::{
-    AdrFrontMatter, DependencyFrontMatter, FeatureFrontMatter, TestFrontMatter,
+    AdrFrontMatter, DependencyFrontMatter, FeatureFrontMatter, PatternFrontMatter, TestFrontMatter,
 };
 use serde_yaml::{Mapping, Value};
 
@@ -36,6 +36,13 @@ pub fn default_body(t: ArtifactType, title: &str) -> String {
         ArtifactType::Adr => "## Context\n\n\n## Decision\n\n\n## Rationale\n\n\n## Rejected alternatives\n\n\n## Test coverage\n\n".to_string(),
         ArtifactType::Tc => format!("## Description\n\n[Describe {} here.]\n", title),
         ArtifactType::Dep => format!("# {}\n\n[Describe this dependency.]\n", title),
+        ArtifactType::Pattern => crate::pattern::create::scaffold_body(&[
+            "When to use".into(),
+            "Prerequisites".into(),
+            "The pattern".into(),
+            "Anti-patterns".into(),
+            "Worked example".into(),
+        ]),
     }
 }
 
@@ -88,6 +95,18 @@ pub fn render_for_type(
             normalize_dep(&mut front);
             Ok(parser::render_dependency(&front, body))
         }
+        ArtifactType::Pattern => {
+            let value = Value::Mapping(map.clone());
+            let mut front: PatternFrontMatter = serde_yaml::from_value(value).map_err(|e| {
+                vec![Finding::error(
+                    "E001",
+                    format!("failed to build pattern front-matter: {}", e),
+                    "$",
+                )]
+            })?;
+            normalize_pattern(&mut front);
+            Ok(parser::render_pattern(&front, body))
+        }
     }
 }
 
@@ -102,6 +121,8 @@ pub fn render_from_mapping(map: &Mapping, body: &str) -> Result<String, Vec<Find
         ArtifactType::Tc
     } else if id.starts_with("DEP-") {
         ArtifactType::Dep
+    } else if id.starts_with("PAT-") {
+        ArtifactType::Pattern
     } else {
         ArtifactType::Feature
     };
@@ -148,4 +169,15 @@ fn normalize_dep(d: &mut DependencyFrontMatter) {
     d.adrs.dedup();
     d.supersedes.sort();
     d.supersedes.dedup();
+}
+
+fn normalize_pattern(p: &mut PatternFrontMatter) {
+    p.domains.sort();
+    p.domains.dedup();
+    p.adrs.sort();
+    p.adrs.dedup();
+    p.requires.sort();
+    p.requires.dedup();
+    p.examples.sort();
+    p.examples.dedup();
 }

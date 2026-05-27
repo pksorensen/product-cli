@@ -66,6 +66,8 @@ pub enum ArtifactType {
     Adr,
     Tc,
     Dep,
+    /// FT-070: pattern artifacts (PAT-XXX).
+    Pattern,
 }
 
 impl ArtifactType {
@@ -75,6 +77,7 @@ impl ArtifactType {
             "adr" => Some(Self::Adr),
             "tc" => Some(Self::Tc),
             "dep" => Some(Self::Dep),
+            "pattern" => Some(Self::Pattern),
             _ => None,
         }
     }
@@ -87,6 +90,7 @@ impl std::fmt::Display for ArtifactType {
             Self::Adr => write!(f, "adr"),
             Self::Tc => write!(f, "tc"),
             Self::Dep => write!(f, "dep"),
+            Self::Pattern => write!(f, "pattern"),
         }
     }
 }

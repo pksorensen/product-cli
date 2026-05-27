@@ -27,6 +27,10 @@ pub struct FeatureFrontMatter {
     /// Acknowledged domain gaps with reasoning (ADR-025)
     #[serde(rename = "domains-acknowledged", default)]
     pub domains_acknowledged: std::collections::HashMap<String, String>,
+    /// Patterns cited by this feature (FT-070, ADR-050).
+    /// Materialised bidirectionally with `pattern.examples`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub patterns: Vec<String>,
     /// Optional commitment date (FT-053, ADR-045) — ISO 8601 YYYY-MM-DD.
     /// Advisory only — never blocks verification or phase gate.
     #[serde(
@@ -335,6 +339,9 @@ pub struct ValidatesBlock {
 // Re-export Dependency types from dep_types module (ADR-030)
 pub use crate::dep_types::*;
 
+// Re-export Pattern types from pattern_types module (FT-070, ADR-050)
+pub use crate::pattern_types::*;
+
 // ---------------------------------------------------------------------------
 // Loaded artifact — front-matter + body + file path
 // ---------------------------------------------------------------------------
@@ -361,36 +368,5 @@ pub struct TestCriterion {
     pub formal_blocks: Vec<crate::formal::FormalBlock>,
 }
 
-// ---------------------------------------------------------------------------
-// Artifact enum for unified handling
-// ---------------------------------------------------------------------------
-
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub enum Artifact {
-    Feature(Feature),
-    Adr(Adr),
-    Test(TestCriterion),
-    Dependency(Dependency),
-}
-
-#[allow(dead_code)]
-impl Artifact {
-    pub fn id(&self) -> &str {
-        match self {
-            Self::Feature(f) => &f.front.id,
-            Self::Adr(a) => &a.front.id,
-            Self::Test(t) => &t.front.id,
-            Self::Dependency(d) => &d.front.id,
-        }
-    }
-
-    pub fn title(&self) -> &str {
-        match self {
-            Self::Feature(f) => &f.front.title,
-            Self::Adr(a) => &a.front.title,
-            Self::Test(t) => &t.front.title,
-            Self::Dependency(d) => &d.front.title,
-        }
-    }
-}
+// Artifact enum for unified handling — see crate::types::artifact.
+pub use crate::types_artifact::Artifact;

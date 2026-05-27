@@ -21291,3 +21291,376 @@ fn tc_805_ft_068_consolidated_exit_criteria() {
     // If those gates failed, this test would not run.
 }
 
+
+// =====================================================================
+// FT-070 — Pattern Artifact tests (TC-812 .. TC-819)
+// =====================================================================
+
+/// TC-812 — `product pattern new` writes a file with every required H2
+/// section and the expected front-matter.
+#[test]
+fn tc_812_pattern_new_writes_file_with_required_sections() {
+    let h = Harness::new();
+    let out = h.run(&["pattern", "new", "Slice + Adapter module structure"]);
+    out.assert_exit(0);
+
+    let path = h
+        .dir
+        .path()
+        .join("docs/patterns/PAT-001-slice-adapter-module-structure.md");
+    assert!(path.exists(), "pattern file not created at {:?}", path);
+    let body = std::fs::read_to_string(&path).expect("read pattern file");
+
+    for heading in [
+        "## When to use",
+        "## Prerequisites",
+        "## The pattern",
+        "## Anti-patterns",
+        "## Worked example",
+    ] {
+        assert!(
+            body.contains(heading),
+            "missing heading '{}' in body:\n{}",
+            heading, body
+        );
+    }
+    assert!(body.contains("id: PAT-001"));
+    assert!(body.contains("title: Slice + Adapter module structure"));
+    assert!(body.contains("status: live"));
+}
+
+/// TC-813 — `product pattern link --requires` against a back-edge produces
+/// E003 cycle (exit code 3) and does not modify the file.
+#[test]
+fn tc_813_pattern_link_requires_cycle_returns_e003() {
+    let h = Harness::new();
+    h.run(&["pattern", "new", "Pattern A"]).assert_exit(0);
+    h.run(&["pattern", "new", "Pattern B"]).assert_exit(0);
+
+    // A requires B.
+    h.run(&["pattern", "link", "PAT-001", "--requires", "PAT-002"])
+        .assert_exit(0);
+
+    // Capture file content before the doomed call.
+    let pat_b_path = h.dir.path().join("docs/patterns/PAT-002-pattern-b.md");
+    let pre = std::fs::read_to_string(&pat_b_path).expect("read PAT-002");
+
+    // B requires A — would close the cycle. ADR-013 maps E003 to a non-zero
+    // exit (currently 1, parity with `graph check` E003 reporting).
+    let out = h.run(&["pattern", "link", "PAT-002", "--requires", "PAT-001"]);
+    assert!(
+        out.exit_code != 0,
+        "expected non-zero exit for cycle, got 0.\nstdout: {}\nstderr: {}",
+        out.stdout, out.stderr
+    );
+    let combined = format!("{}{}", out.stdout, out.stderr);
+    assert!(combined.contains("E003"), "missing E003 marker:\n{}", combined);
+    assert!(combined.contains("cycle"), "missing 'cycle':\n{}", combined);
+
+    let post = std::fs::read_to_string(&pat_b_path).expect("read PAT-002 again");
+    assert_eq!(pre, post, "file was modified by rejected cycle link");
+}
+
+/// TC-814 — `product pattern link --example FT-Y` materialises both
+/// `PAT-X.examples` and `FT-Y.patterns` in the same atomic batch.
+#[test]
+fn tc_814_pattern_link_example_materialises_feature_patterns() {
+    let h = Harness::new();
+    // Create a feature first (so the pattern can example it).
+    h.run(&["feature", "new", "Sample Feature"]).assert_exit(0);
+    h.run(&["pattern", "new", "Sample Pattern"]).assert_exit(0);
+
+    let out = h.run(&["pattern", "link", "PAT-001", "--example", "FT-001"]);
+    out.assert_exit(0);
+
+    let pat = std::fs::read_to_string(
+        h.dir.path().join("docs/patterns/PAT-001-sample-pattern.md"),
+    )
+    .expect("read PAT-001");
+    assert!(
+        pat.contains("examples:") && pat.contains("FT-001"),
+        "pattern examples missing FT-001:\n{}",
+        pat
+    );
+
+    let feat = std::fs::read_to_string(
+        h.dir.path().join("docs/features/FT-001-sample-feature.md"),
+    )
+    .expect("read FT-001");
+    assert!(
+        feat.contains("patterns:") && feat.contains("PAT-001"),
+        "feature patterns missing PAT-001:\n{}",
+        feat
+    );
+
+    // JSON form reports writes + reciprocated entry.
+    let json_out = h.run(&[
+        "--format",
+        "json",
+        "pattern",
+        "link",
+        "PAT-001",
+        "--example",
+        "FT-001",
+    ]);
+    json_out.assert_exit(0);
+    // Idempotent — no new writes when already linked.
+    let parsed: serde_json::Value =
+        serde_json::from_str(&json_out.stdout).expect("valid JSON");
+    let writes = parsed["writes"].as_array().expect("writes array");
+    assert!(writes.is_empty(), "expected idempotent run, got writes: {:?}", writes);
+}
+
+/// TC-815 — applying a YAML request that creates a pattern with
+/// `examples: [FT-001]` produces the PAT file and reciprocates onto the
+/// feature in one atomic batch.
+#[test]
+fn tc_815_request_apply_pattern_creates_file_and_back_link() {
+    let h = Harness::new();
+    h.run(&["feature", "new", "Target Feature"]).assert_exit(0);
+
+    let yaml = r#"type: create
+schema-version: 1
+reason: "FT-070 TC-815 — apply pattern via request"
+artifacts:
+  - type: pattern
+    title: "MCP tool with disk side-effect"
+    status: live
+    examples: [FT-001]
+"#;
+    let request_path = h.dir.path().join("req.yaml");
+    std::fs::write(&request_path, yaml).expect("write request yaml");
+
+    let out = h.run(&["request", "apply", request_path.to_str().expect("path")]);
+    out.assert_exit(0);
+
+    // PAT-001 file exists.
+    let pat_path = h
+        .dir
+        .path()
+        .join("docs/patterns/PAT-001-mcp-tool-with-disk-side-effect.md");
+    assert!(pat_path.exists(), "pattern file not created at {:?}", pat_path);
+    let pat = std::fs::read_to_string(&pat_path).expect("read pattern");
+    assert!(pat.contains("examples:") && pat.contains("FT-001"));
+
+    // Feature reciprocated.
+    let feat = std::fs::read_to_string(
+        h.dir.path().join("docs/features/FT-001-target-feature.md"),
+    )
+    .expect("read feature");
+    assert!(
+        feat.contains("patterns:") && feat.contains("PAT-001"),
+        "feature patterns missing PAT-001:\n{}",
+        feat
+    );
+}
+
+/// TC-816 — `product_pattern_new` over MCP writes a file on disk that is
+/// byte-identical to the CLI shape (FT-066 TC-778 generalisation).
+#[test]
+fn tc_816_mcp_pattern_new_writes_to_disk() {
+    use std::process::{Command, Stdio};
+
+    let h = Harness::new();
+    // Enable MCP write tools for this fixture.
+    let cfg = h.dir.path().join("product.toml");
+    let mut cfg_content = std::fs::read_to_string(&cfg).expect("read config");
+    cfg_content.push_str("\n[mcp]\nwrite = true\n");
+    std::fs::write(&cfg, cfg_content).expect("write config");
+
+    // Spawn the MCP server in stdio mode and send tools/call.
+    let mut child = Command::new(&h.bin)
+        .args(["mcp"])
+        .current_dir(h.dir.path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn mcp");
+
+    let req = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+            "name": "product_pattern_new",
+            "arguments": {"title": "Slice + Adapter module structure"}
+        }
+    });
+    {
+        use std::io::Write;
+        let stdin = child.stdin.as_mut().expect("stdin");
+        writeln!(stdin, "{}", req.to_string()).expect("write request");
+    }
+    drop(child.stdin.take());
+    let output = child.wait_with_output().expect("wait child");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // Locate the JSON-RPC response line.
+    let response_line = stdout
+        .lines()
+        .find(|l| l.starts_with('{'))
+        .unwrap_or_default();
+    let resp: serde_json::Value =
+        serde_json::from_str(response_line).expect("valid JSON-RPC response");
+    let text = resp["result"]["content"][0]["text"]
+        .as_str()
+        .expect("text payload");
+    let payload: serde_json::Value =
+        serde_json::from_str(text).expect("payload JSON");
+    let id = payload["id"].as_str().expect("id field");
+    assert_eq!(id, "PAT-001");
+    let path = payload["path"].as_str().expect("path field");
+    assert!(
+        std::path::Path::new(path).exists(),
+        "pattern file does not exist at {}",
+        path
+    );
+    let body = std::fs::read_to_string(path).expect("read pattern file");
+    assert!(body.contains("## When to use"));
+    assert!(body.contains("id: PAT-001"));
+}
+
+/// TC-817 — `product_pattern_status` over MCP writes the status and
+/// `deprecated-by` fields to disk.
+#[test]
+fn tc_817_mcp_pattern_status_writes_status_field() {
+    use std::process::{Command, Stdio};
+
+    let h = Harness::new();
+    // Enable MCP write tools.
+    let cfg = h.dir.path().join("product.toml");
+    let mut cfg_content = std::fs::read_to_string(&cfg).expect("read config");
+    cfg_content.push_str("\n[mcp]\nwrite = true\n");
+    std::fs::write(&cfg, cfg_content).expect("write config");
+
+    // Seed two patterns via CLI.
+    h.run(&["pattern", "new", "Pattern Old"]).assert_exit(0);
+    h.run(&["pattern", "new", "Pattern New"]).assert_exit(0);
+
+    let mut child = Command::new(&h.bin)
+        .args(["mcp"])
+        .current_dir(h.dir.path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn mcp");
+    let req = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+            "name": "product_pattern_status",
+            "arguments": {
+                "id": "PAT-001",
+                "status": "deprecated",
+                "deprecated_by": "PAT-002"
+            }
+        }
+    });
+    {
+        use std::io::Write;
+        let stdin = child.stdin.as_mut().expect("stdin");
+        writeln!(stdin, "{}", req.to_string()).expect("write");
+    }
+    drop(child.stdin.take());
+    let output = child.wait_with_output().expect("wait");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let resp_line = stdout.lines().find(|l| l.starts_with('{')).unwrap_or_default();
+    let resp: serde_json::Value =
+        serde_json::from_str(resp_line).expect("valid JSON-RPC");
+    let text = resp["result"]["content"][0]["text"].as_str().expect("text");
+    let payload: serde_json::Value = serde_json::from_str(text).expect("payload");
+    assert_eq!(payload["status"], "deprecated");
+    assert_eq!(payload["deprecated-by"], "PAT-002");
+
+    // File written.
+    let pat_file =
+        std::fs::read_to_string(h.dir.path().join("docs/patterns/PAT-001-pattern-old.md"))
+            .expect("read pattern");
+    assert!(pat_file.contains("status: deprecated"));
+    assert!(pat_file.contains("deprecated-by: PAT-002"));
+}
+
+/// TC-818 — transitioning back to `live` removes the `deprecated-by` field.
+#[test]
+fn tc_818_pattern_status_to_live_clears_deprecated_by() {
+    let h = Harness::new();
+    h.run(&["pattern", "new", "Pattern Subject"]).assert_exit(0);
+    h.run(&["pattern", "new", "Pattern Successor"]).assert_exit(0);
+
+    h.run(&[
+        "pattern",
+        "status",
+        "PAT-001",
+        "deprecated",
+        "--deprecated-by",
+        "PAT-002",
+    ])
+    .assert_exit(0);
+
+    let path = h.dir.path().join("docs/patterns/PAT-001-pattern-subject.md");
+    let before = std::fs::read_to_string(&path).expect("read");
+    assert!(before.contains("status: deprecated"));
+    assert!(before.contains("deprecated-by: PAT-002"));
+
+    h.run(&["pattern", "status", "PAT-001", "live"]).assert_exit(0);
+    let after = std::fs::read_to_string(&path).expect("read");
+    assert!(after.contains("status: live"));
+    assert!(
+        !after.contains("deprecated-by:"),
+        "deprecated-by must be absent after relive:\n{}",
+        after
+    );
+}
+
+/// TC-819 — FT-070 exit criteria aggregator. The actual gates (cargo
+/// build, cargo t, cargo clippy, file-length) are enforced by the
+/// surrounding test infrastructure; this TC also grep-guards against the
+/// FT-046 anti-pattern advisory string in `src/pattern/` and `src/mcp/`.
+#[test]
+fn tc_819_ft_070_exit_criteria_pattern_crud_parity() {
+    // Grep guard: the legacy "envelope-only" string must not appear in
+    // any pattern slice or pattern MCP handler.
+    let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let pat_slice = repo_root.join("src/pattern");
+    let pat_mcp = repo_root.join("src/mcp/pattern_handlers.rs");
+
+    fn assert_no_legacy_advisory(dir: &std::path::Path) {
+        if !dir.exists() {
+            return;
+        }
+        for entry in std::fs::read_dir(dir).expect("read dir") {
+            let entry = entry.expect("dir entry");
+            let path = entry.path();
+            if path.is_dir() {
+                assert_no_legacy_advisory(&path);
+            } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
+                let content = std::fs::read_to_string(&path).expect("read rs file");
+                assert!(
+                    !content.contains("Use CLI for"),
+                    "legacy anti-pattern advisory string found in {:?}",
+                    path
+                );
+                assert!(
+                    !content.contains("stub"),
+                    "found 'stub' literal in {:?}",
+                    path
+                );
+            }
+        }
+    }
+    assert_no_legacy_advisory(&pat_slice);
+    if pat_mcp.exists() {
+        let content = std::fs::read_to_string(&pat_mcp).expect("read pattern_handlers.rs");
+        assert!(!content.contains("Use CLI for"));
+        assert!(!content.contains("stub"));
+    }
+
+    // Smoke test: every pattern subcommand is wired and exits 0 on --help.
+    let h = Harness::new();
+    h.run(&["pattern", "--help"]).assert_exit(0);
+    for sub in ["new", "show", "list", "status", "link"] {
+        h.run(&["pattern", sub, "--help"]).assert_exit(0);
+    }
+}

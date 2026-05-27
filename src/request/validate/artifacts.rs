@@ -26,7 +26,55 @@ pub fn validate_artifact(
         ArtifactType::Adr => validate_adr(a, refs, ctx, findings),
         ArtifactType::Tc => validate_tc(a, refs, ctx, findings),
         ArtifactType::Dep => validate_dep(a, refs, ctx, findings),
+        ArtifactType::Pattern => validate_pattern(a, refs, ctx, findings),
     }
+}
+
+fn validate_pattern(
+    a: &ArtifactSpec,
+    refs: &HashMap<String, (ArtifactType, usize)>,
+    ctx: &ValidationContext<'_>,
+    findings: &mut Vec<Finding>,
+) {
+    if let Some(Value::String(s)) = a.fields.get(Value::String("status".into())) {
+        if !matches!(s.as_str(), "live" | "deprecated") {
+            findings.push(Finding::error(
+                "E006",
+                format!("invalid pattern status '{}' — expected live or deprecated", s),
+                format!("$.artifacts[{}].status", a.index),
+            ));
+        }
+    }
+    check_domains_vocab(
+        a.fields.get(Value::String("domains".into())),
+        &ctx.config.domains,
+        &format!("$.artifacts[{}].domains", a.index),
+        findings,
+    );
+    check_id_list(
+        a.fields.get(Value::String("adrs".into())),
+        ArtifactType::Adr,
+        refs,
+        ctx.graph,
+        &format!("$.artifacts[{}].adrs", a.index),
+        findings,
+    );
+    check_id_list(
+        a.fields.get(Value::String("requires".into())),
+        ArtifactType::Pattern,
+        refs,
+        ctx.graph,
+        &format!("$.artifacts[{}].requires", a.index),
+        findings,
+    );
+    check_id_list(
+        a.fields.get(Value::String("examples".into())),
+        ArtifactType::Feature,
+        refs,
+        ctx.graph,
+        &format!("$.artifacts[{}].examples", a.index),
+        findings,
+    );
 }
 
 fn validate_feature(
