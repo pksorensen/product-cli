@@ -2,7 +2,7 @@
 id: TC-847
 title: implement_bundle_includes_patterns_in_topo_order
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-074
@@ -10,6 +10,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_847_implement_bundle_includes_patterns_in_topo_order
+last-run: 2026-05-27T15:14:50.511781858+00:00
+last-run-duration: 0.2s
 ---
 
 ## Description

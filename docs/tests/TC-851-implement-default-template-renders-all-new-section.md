@@ -2,7 +2,7 @@
 id: TC-851
 title: implement_default_template_renders_all_new_sections
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-074
@@ -10,6 +10,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_851_implement_default_template_renders_all_new_sections
+last-run: 2026-05-27T15:14:50.511781858+00:00
+last-run-duration: 0.2s
 ---
 
 ## Description

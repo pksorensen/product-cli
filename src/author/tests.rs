@@ -117,7 +117,8 @@ fn prompts_init_creates_files() {
     assert_eq!(created.len(), 8, "should create all 8 default prompts");
     assert!(dir.path().join(".product/prompts/author-feature-v1.md").exists());
     assert!(dir.path().join(".product/prompts/author-pattern-v1.md").exists());
-    assert!(dir.path().join(".product/prompts/implement-v1.md").exists());
+    // FT-074 bumped the implement prompt to v2.
+    assert!(dir.path().join(".product/prompts/implement-v2.md").exists());
     assert!(dir.path().join(".product/prompts/gap-analysis-v1.md").exists());
     assert!(dir.path().join(".product/prompts/drift-analysis-v1.md").exists());
     assert!(dir.path().join(".product/prompts/conflict-check-v1.md").exists());

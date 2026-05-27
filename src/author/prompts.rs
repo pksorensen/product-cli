@@ -24,7 +24,7 @@ pub(crate) const DEFAULT_PROMPTS: &[(&str, &str, &str)] = &[
     ("author-adr", "author-adr-v1.md", "1"),
     ("author-pattern", "author-pattern-v1.md", "1"),
     ("author-review", "author-review-v1.md", "1"),
-    ("implement", "implement-v1.md", "1"),
+    ("implement", "implement-v2.md", "2"),
     ("gap-analysis", "gap-analysis-v1.md", "1"),
     ("drift-analysis", "drift-analysis-v1.md", "1"),
     ("conflict-check", "conflict-check-v1.md", "1"),

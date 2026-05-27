@@ -2,7 +2,7 @@
 id: TC-850
 title: implement_pipeline_works_with_template_lacking_new_variables
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-074
@@ -10,6 +10,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_850_implement_pipeline_works_with_template_lacking_new_variables
+last-run: 2026-05-27T15:14:50.511781858+00:00
+last-run-duration: 0.2s
 ---
 
 ## Description

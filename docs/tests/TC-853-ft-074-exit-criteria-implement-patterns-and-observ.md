@@ -2,7 +2,7 @@
 id: TC-853
 title: ft_074_exit_criteria_implement_patterns_and_observes
 type: exit-criteria
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-074
@@ -10,6 +10,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_853_ft_074_exit_criteria_implement_patterns_and_observes
+last-run: 2026-05-27T15:14:50.511781858+00:00
+last-run-duration: 0.2s
 ---
 
 ## Description

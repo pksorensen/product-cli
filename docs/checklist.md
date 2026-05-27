@@ -1455,7 +1455,7 @@
 - [x] TC-845: feature_link_pattern_against_deprecated_pat_warns_but_writes (scenario) — passing
 - [x] TC-846: ft_073_exit_criteria_pattern_authoring (exit-criteria) — passing
 
-### FT-074 — product implement Loads Patterns and Surfaces TC observes in the Executor Bundle [ ]
+### FT-074 — product implement Loads Patterns and Surfaces TC observes in the Executor Bundle [x]
 
 - [x] ADR-050: Introduce Pattern (PAT) Artifact Type for Implementation Knowledge (accepted)
 - [x] ADR-051: TC Observability Requirement — Causation Over Transaction (accepted)
@@ -1470,13 +1470,13 @@
 - [x] ADR-042: TC Type System — Reserved Structural Types and Open Descriptive Types (accepted)
 - [x] ADR-047: Functional Specification Lives in Feature Body, Not a Separate Artifact (accepted)
 - [x] ADR-048: Canonical Repository Layout — All Product State Under `.product/` (accepted)
-- [ ] TC-847: implement_bundle_includes_patterns_in_topo_order (scenario) — unimplemented
-- [ ] TC-848: implement_bundle_renders_tc_observes_inline_with_tc_body (scenario) — unimplemented
-- [ ] TC-849: implement_bundle_contains_adr_051_hard_constraint_line (scenario) — unimplemented
-- [ ] TC-850: implement_pipeline_works_with_template_lacking_new_variables (scenario) — unimplemented
-- [ ] TC-851: implement_default_template_renders_all_new_sections (scenario) — unimplemented
-- [ ] TC-852: implement_skips_pattern_section_when_feature_has_none (scenario) — unimplemented
-- [ ] TC-853: ft_074_exit_criteria_implement_patterns_and_observes (exit-criteria) — unimplemented
+- [x] TC-847: implement_bundle_includes_patterns_in_topo_order (scenario) — passing
+- [x] TC-848: implement_bundle_renders_tc_observes_inline_with_tc_body (scenario) — passing
+- [x] TC-849: implement_bundle_contains_adr_051_hard_constraint_line (scenario) — passing
+- [x] TC-850: implement_pipeline_works_with_template_lacking_new_variables (scenario) — passing
+- [x] TC-851: implement_default_template_renders_all_new_sections (scenario) — passing
+- [x] TC-852: implement_skips_pattern_section_when_feature_has_none (scenario) — passing
+- [x] TC-853: ft_074_exit_criteria_implement_patterns_and_observes (exit-criteria) — passing
 
 ### FT-075 — Seed Pattern Catalog — PAT-001 Slice + Adapter, PAT-002 MCP Tool With Disk Side-Effect, PAT-003 TC Observability [ ]
 

@@ -212,6 +212,11 @@ pub enum Commands {
         /// Disable Step 0a auto-fill of TC runner config (FT-068)
         #[arg(long = "no-auto-runners")]
         no_auto_runners: bool,
+        /// Prompt template profile (FT-074). Use "legacy-template" for the
+        /// pre-FT-074 bundle shape without Patterns / observes inline /
+        /// ADR-051 hard-constraint line.
+        #[arg(long)]
+        target: Option<String>,
     },
     /// Initialize a new Product repository (ADR-033, ADR-048)
     Init {

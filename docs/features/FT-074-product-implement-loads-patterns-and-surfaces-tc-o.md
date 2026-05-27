@@ -2,7 +2,7 @@
 id: FT-074
 title: product implement Loads Patterns and Surfaces TC observes in the Executor Bundle
 phase: 5
-status: planned
+status: complete
 depends-on:
 - FT-070
 - FT-071

@@ -12,6 +12,7 @@ pub(crate) fn handle_implement(
     no_verify: bool,
     headless: bool,
     no_auto_runners: bool,
+    target: Option<&str>,
 ) -> BoxResult {
     let (config, root, graph) = load_graph()?;
     implement::run_implement(
@@ -23,6 +24,7 @@ pub(crate) fn handle_implement(
         no_verify,
         headless,
         no_auto_runners,
+        target,
     )?;
     Ok(())
 }

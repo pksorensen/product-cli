@@ -2,7 +2,7 @@
 id: TC-848
 title: implement_bundle_renders_tc_observes_inline_with_tc_body
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-074
@@ -10,6 +10,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_848_implement_bundle_renders_tc_observes_inline_with_tc_body
+last-run: 2026-05-27T15:14:50.511781858+00:00
+last-run-duration: 0.2s
 ---
 
 ## Description

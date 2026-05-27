@@ -10584,9 +10584,10 @@ fn tc_315_prompts_init_creates_files() {
         h.exists("benchmarks/prompts/author-review-v1.md"),
         "author-review-v1.md should be created"
     );
+    // FT-074 bumped the implement prompt to v2.
     assert!(
-        h.exists("benchmarks/prompts/implement-v1.md"),
-        "implement-v1.md should be created"
+        h.exists("benchmarks/prompts/implement-v2.md"),
+        "implement-v2.md should be created"
     );
 
     // Output should mention created files
@@ -18464,7 +18465,7 @@ fn tc_698_implement_pipeline_honors_per_repo_implement_prompt() {
 
     // --- Override path -------------------------------------------------
     let sentinel = "# CUSTOM IMPLEMENT PROMPT — sentinel-9f3b2a";
-    h.write("benchmarks/prompts/implement-v1.md", sentinel);
+    h.write("benchmarks/prompts/implement-v2.md", sentinel);
 
     let out = h.run(&["implement", "FT-001", "--dry-run"]);
     out.assert_exit(0);
@@ -18511,7 +18512,7 @@ fn tc_698_implement_pipeline_honors_per_repo_implement_prompt() {
     );
 
     // --- Fallback path -------------------------------------------------
-    std::fs::remove_file(h.dir.path().join("benchmarks/prompts/implement-v1.md"))
+    std::fs::remove_file(h.dir.path().join("benchmarks/prompts/implement-v2.md"))
         .expect("remove override");
 
     let out2 = h.run(&["implement", "FT-001", "--dry-run"]);
@@ -18547,7 +18548,7 @@ fn tc_698_implement_pipeline_honors_per_repo_implement_prompt() {
     );
 
     // --- Negative case (empty override file) ---------------------------
-    h.write("benchmarks/prompts/implement-v1.md", "");
+    h.write("benchmarks/prompts/implement-v2.md", "");
 
     let out3 = h.run(&["implement", "FT-001", "--dry-run"]);
     out3.assert_exit(0);
@@ -22944,4 +22945,398 @@ fn tc_846_ft_073_exit_criteria_pattern_authoring() {
     );
     // graph check exits 0 against the bare fixture.
     h.run(&["graph", "check"]).assert_exit(0);
+}
+
+// =============================================================================
+// FT-074 — `product implement` loads patterns and surfaces TC observes in the
+// executor bundle (ADR-051).
+// =============================================================================
+
+/// Helper: write a feature linked to specific TCs AND patterns.
+fn write_feature_with_patterns_and_tcs(
+    h: &Harness,
+    id: &str,
+    slug: &str,
+    status: &str,
+    patterns: &[&str],
+    tcs: &[&str],
+) {
+    let mut front = String::from("---\n");
+    front.push_str(&format!("id: {}\n", id));
+    front.push_str(&format!("title: {}\n", id));
+    front.push_str("phase: 1\n");
+    front.push_str(&format!("status: {}\n", status));
+    front.push_str("adrs: [ADR-001]\n");
+    if !tcs.is_empty() {
+        front.push_str("tests:\n");
+        for tc in tcs {
+            front.push_str(&format!("  - {}\n", tc));
+        }
+    }
+    if !patterns.is_empty() {
+        front.push_str("patterns:\n");
+        for p in patterns {
+            front.push_str(&format!("  - {}\n", p));
+        }
+    }
+    front.push_str("---\n\n## Description\n\nSample feature for FT-074.\n");
+    h.write(&format!("docs/features/{}-{}.md", id, slug), &front);
+}
+
+/// Helper: write a TC with optional observes surfaces and runner config.
+fn write_tc_with_observes(
+    h: &Harness,
+    tc_id: &str,
+    slug: &str,
+    feature: &str,
+    observes: &[&str],
+) {
+    let mut fm = String::from("---\n");
+    fm.push_str(&format!("id: {}\n", tc_id));
+    fm.push_str(&format!("title: {}-observes-fixture\n", tc_id));
+    fm.push_str("type: scenario\n");
+    fm.push_str("status: unimplemented\n");
+    fm.push_str("validates:\n");
+    fm.push_str(&format!("  features: [{}]\n", feature));
+    fm.push_str("  adrs: [ADR-001]\n");
+    fm.push_str("phase: 1\n");
+    fm.push_str(&format!(
+        "runner: cargo-test\nrunner-args: \"tc_{}_x\"\n",
+        tc_id.trim_start_matches("TC-").to_lowercase()
+    ));
+    if !observes.is_empty() {
+        fm.push_str("observes:\n");
+        for o in observes {
+            fm.push_str(&format!("  - {}\n", o));
+        }
+    }
+    fm.push_str(&format!(
+        "---\n\nTest body for {}. Observes: {}.\n",
+        tc_id,
+        observes.join(",")
+    ));
+    h.write(&format!("docs/tests/{}-{}.md", tc_id, slug), &fm);
+}
+
+/// Helper: read the implement context file emitted by `--dry-run` and return
+/// its content. Asserts the file exists.
+fn read_impl_context_file(out: &Output) -> String {
+    let line = out
+        .stdout
+        .lines()
+        .find(|l| l.contains("Context file:"))
+        .expect("expected `Context file:` line in stdout");
+    let path = line.split("Context file:").nth(1).expect("path").trim();
+    std::fs::read_to_string(path).expect("read context file")
+}
+
+/// TC-847 — patterns are rendered in topological order (PAT-A before PAT-B).
+#[test]
+fn tc_847_implement_bundle_includes_patterns_in_topo_order() {
+    let h = Harness::new();
+    write_test_adr(&h);
+    write_pattern(&h, "PAT-001", "pat-a", "live", &[], &[], &[], None);
+    write_pattern(&h, "PAT-002", "pat-b", "live", &["PAT-001"], &[], &[], None);
+    write_feature_with_patterns_and_tcs(
+        &h,
+        "FT-100",
+        "ft100",
+        "planned",
+        &["PAT-002"],
+        &[],
+    );
+
+    let out = h.run(&["implement", "FT-100", "--dry-run"]);
+    out.assert_exit(0);
+
+    let bundle = read_impl_context_file(&out);
+    assert!(
+        bundle.contains("## Patterns"),
+        "bundle missing `## Patterns` section:\n{}",
+        bundle
+    );
+    let p1 = bundle.find("PAT-001").expect("PAT-001 in bundle");
+    let p2 = bundle.find("PAT-002").expect("PAT-002 in bundle");
+    assert!(
+        p1 < p2,
+        "PAT-001 must appear before PAT-002 in topo order:\n{}",
+        bundle
+    );
+}
+
+/// TC-848 — observes lines render inline with each TC body.
+#[test]
+fn tc_848_implement_bundle_renders_tc_observes_inline_with_tc_body() {
+    let h = Harness::new();
+    write_test_adr(&h);
+    write_tc_with_observes(&h, "TC-101", "obs-a", "FT-100", &["file"]);
+    write_tc_with_observes(
+        &h,
+        "TC-102",
+        "obs-b",
+        "FT-100",
+        &["graph", "mcp-response"],
+    );
+    write_feature_with_patterns_and_tcs(
+        &h,
+        "FT-100",
+        "ft100",
+        "planned",
+        &[],
+        &["TC-101", "TC-102"],
+    );
+
+    let out = h.run(&["implement", "FT-100", "--dry-run"]);
+    out.assert_exit(0);
+
+    let bundle = read_impl_context_file(&out);
+    // Observes lines appear in the bundle, inline (not a separate table).
+    assert!(
+        bundle.contains("**observes:** [file]"),
+        "TC-101 observes line missing:\n{}",
+        bundle
+    );
+    assert!(
+        bundle.contains("**observes:** [graph, mcp-response]"),
+        "TC-102 observes line missing:\n{}",
+        bundle
+    );
+    // The observes line for TC-101 appears between the TC-101 heading and
+    // the next TC heading (i.e. adjacent to its body, not collated).
+    let tc_101_pos = bundle.find("### TC-101").expect("TC-101 heading");
+    let tc_101_obs = bundle.find("**observes:** [file]").expect("TC-101 observes");
+    let tc_102_pos = bundle.find("### TC-102").expect("TC-102 heading");
+    assert!(
+        tc_101_pos < tc_101_obs && tc_101_obs < tc_102_pos,
+        "TC-101 observes line must sit between its heading and the TC-102 heading:\n{}",
+        bundle
+    );
+}
+
+/// TC-849 — the bundle contains the ADR-051 hard-constraint line verbatim.
+#[test]
+fn tc_849_implement_bundle_contains_adr_051_hard_constraint_line() {
+    let h = Harness::new();
+    write_test_adr(&h);
+    write_feature_with_patterns_and_tcs(
+        &h, "FT-100", "ft100", "planned", &[], &[],
+    );
+
+    let out = h.run(&["implement", "FT-100", "--dry-run"]);
+    out.assert_exit(0);
+
+    let bundle = read_impl_context_file(&out);
+    assert!(
+        bundle.contains("## Hard constraints"),
+        "bundle missing `## Hard constraints`:\n{}",
+        bundle
+    );
+    // ADR-051 reminder appears verbatim. The reminder cites the ADR and
+    // the named-surface contract.
+    assert!(
+        bundle.contains("ADR-051"),
+        "ADR-051 reference missing from hard constraints:\n{}",
+        bundle
+    );
+    assert!(
+        bundle.contains("`observes:`")
+            || bundle.contains("observes:"),
+        "ADR-051 reminder must mention observes:\n{}",
+        bundle
+    );
+    assert!(
+        bundle.contains("response envelope"),
+        "ADR-051 reminder must mention the response-envelope anti-pattern:\n{}",
+        bundle
+    );
+}
+
+/// TC-850 — a "legacy template" target omits the new sections; pipeline still runs.
+#[test]
+fn tc_850_implement_pipeline_works_with_template_lacking_new_variables() {
+    let h = Harness::new();
+    write_test_adr(&h);
+    write_pattern(&h, "PAT-001", "pat-a", "live", &[], &[], &[], None);
+    write_tc_with_observes(&h, "TC-101", "obs-a", "FT-100", &["file"]);
+    write_feature_with_patterns_and_tcs(
+        &h,
+        "FT-100",
+        "ft100",
+        "planned",
+        &["PAT-001"],
+        &["TC-101"],
+    );
+
+    let out = h.run(&[
+        "implement",
+        "FT-100",
+        "--dry-run",
+        "--target",
+        "legacy-template",
+    ]);
+    out.assert_exit(0);
+
+    let bundle = read_impl_context_file(&out);
+    // Legacy mode: patterns section is stripped.
+    assert!(
+        !bundle.contains("## Patterns"),
+        "legacy template must omit `## Patterns`:\n{}",
+        bundle
+    );
+    // Legacy mode: inline observes lines are not injected.
+    assert!(
+        !bundle.contains("**observes:**"),
+        "legacy template must omit inline observes:\n{}",
+        bundle
+    );
+    // Legacy mode: ADR-051 hard-constraint line is omitted.
+    assert!(
+        !bundle.contains("ADR-051"),
+        "legacy template must omit ADR-051 reminder:\n{}",
+        bundle
+    );
+
+    // Switching back to the default template restores all three sections.
+    let out_default = h.run(&["implement", "FT-100", "--dry-run"]);
+    out_default.assert_exit(0);
+    let bundle_default = read_impl_context_file(&out_default);
+    assert!(
+        bundle_default.contains("## Patterns"),
+        "default template should render `## Patterns`:\n{}",
+        bundle_default
+    );
+    assert!(
+        bundle_default.contains("**observes:**"),
+        "default template should render inline observes:\n{}",
+        bundle_default
+    );
+    assert!(
+        bundle_default.contains("ADR-051"),
+        "default template should render the ADR-051 reminder:\n{}",
+        bundle_default
+    );
+}
+
+/// TC-851 — regression guard: the default template renders every new section.
+#[test]
+fn tc_851_implement_default_template_renders_all_new_sections() {
+    let h = Harness::new();
+    write_test_adr(&h);
+    write_pattern(&h, "PAT-001", "pat-a", "live", &[], &[], &[], None);
+    write_tc_with_observes(&h, "TC-101", "obs-a", "FT-100", &["file"]);
+    write_tc_with_observes(
+        &h,
+        "TC-102",
+        "obs-b",
+        "FT-100",
+        &["graph", "exit-code"],
+    );
+    write_feature_with_patterns_and_tcs(
+        &h,
+        "FT-100",
+        "ft100",
+        "planned",
+        &["PAT-001"],
+        &["TC-101", "TC-102"],
+    );
+
+    let out = h.run(&["implement", "FT-100", "--dry-run"]);
+    out.assert_exit(0);
+
+    let bundle = read_impl_context_file(&out);
+    assert!(
+        bundle.contains("## Patterns"),
+        "default bundle missing `## Patterns`:\n{}",
+        bundle
+    );
+    assert!(
+        bundle.contains("**observes:** [file]"),
+        "default bundle missing TC-101 observes line:\n{}",
+        bundle
+    );
+    assert!(
+        bundle.contains("**observes:** [graph, exit-code]"),
+        "default bundle missing TC-102 observes line:\n{}",
+        bundle
+    );
+    assert!(
+        bundle.contains("ADR-051"),
+        "default bundle missing ADR-051 hard-constraint line:\n{}",
+        bundle
+    );
+}
+
+/// TC-852 — feature with empty `patterns:` produces a bundle without the
+/// patterns header.
+#[test]
+fn tc_852_implement_skips_pattern_section_when_feature_has_none() {
+    let h = Harness::new();
+    write_test_adr(&h);
+    write_tc_with_observes(&h, "TC-101", "obs-a", "FT-100", &["file"]);
+    write_feature_with_patterns_and_tcs(
+        &h,
+        "FT-100",
+        "ft100",
+        "planned",
+        &[],
+        &["TC-101"],
+    );
+
+    let out = h.run(&["implement", "FT-100", "--dry-run"]);
+    out.assert_exit(0);
+
+    let bundle = read_impl_context_file(&out);
+    assert!(
+        !bundle.contains("## Patterns"),
+        "no `## Patterns` heading should appear when feature has no patterns:\n{}",
+        bundle
+    );
+    // The rest of the bundle is well-formed — TCs and hard constraints
+    // still appear.
+    assert!(
+        bundle.contains("## Test Criteria"),
+        "TCs section should still render:\n{}",
+        bundle
+    );
+    assert!(
+        bundle.contains("## Hard constraints"),
+        "hard constraints should still render:\n{}",
+        bundle
+    );
+}
+
+/// TC-853 — FT-074 exit-criteria aggregator.
+#[test]
+fn tc_853_ft_074_exit_criteria_implement_patterns_and_observes() {
+    // Surface check: --target flag is plumbed end-to-end.
+    let h = Harness::new();
+    let help = h.run(&["implement", "--help"]);
+    help.assert_exit(0);
+    help.assert_stdout_contains("--target");
+
+    // Surface check: the new sibling helper module is reachable through the
+    // public API (compile-time check via the cargo build that ran this
+    // test binary). Asserting on the `--target` flag here is sufficient
+    // because cargo's per-binary gating ensures the helper compiles when
+    // this test compiles.
+
+    // Dogfood: run the default pipeline against a minimal feature and
+    // confirm the three FT-074 contracts all hold in one bundle.
+    write_test_adr(&h);
+    write_pattern(&h, "PAT-001", "pat-a", "live", &[], &[], &[], None);
+    write_tc_with_observes(&h, "TC-101", "obs-a", "FT-100", &["file"]);
+    write_feature_with_patterns_and_tcs(
+        &h,
+        "FT-100",
+        "ft100",
+        "planned",
+        &["PAT-001"],
+        &["TC-101"],
+    );
+    let out = h.run(&["implement", "FT-100", "--dry-run"]);
+    out.assert_exit(0);
+    let bundle = read_impl_context_file(&out);
+    assert!(bundle.contains("## Patterns"));
+    assert!(bundle.contains("**observes:** [file]"));
+    assert!(bundle.contains("ADR-051"));
 }

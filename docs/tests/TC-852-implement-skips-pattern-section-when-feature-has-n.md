@@ -2,7 +2,7 @@
 id: TC-852
 title: implement_skips_pattern_section_when_feature_has_none
 type: scenario
-status: unimplemented
+status: passing
 validates:
   features:
   - FT-074
@@ -10,6 +10,8 @@ validates:
 phase: 1
 runner: cargo-test
 runner-args: tc_852_implement_skips_pattern_section_when_feature_has_none
+last-run: 2026-05-27T15:14:50.511781858+00:00
+last-run-duration: 0.2s
 ---
 
 ## Description

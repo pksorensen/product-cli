@@ -9,10 +9,24 @@ use crate::parser;
 use std::path::Path;
 use std::process::Command;
 
+use super::observes_table::{build_observes_table, inject_observes_inline};
 use super::runner_autofill::{
     apply_autofill, plan_autofill, AutofillPlan, AUTOFILL_RUNNER, AUTOFILL_TIMEOUT_SECS,
 };
 use super::verify::run_verify;
+
+/// ADR-051 hard-constraint line — included verbatim in the implement
+/// prompt so the executor agent sees the rule before writing a TC.
+/// FT-074 codifies this so the constraint cannot drift between the prompt
+/// template and the pipeline.
+pub const ADR_051_HARD_CONSTRAINT: &str =
+    "Every TC under test must declare `observes:` (ADR-051) and its \
+assertions must target the named surface(s). When writing a TC, \
+assert against the underlying causation (file on disk, graph node, \
+exit code, git tag, stdout/stderr, MCP envelope, etc.) — never on a \
+response envelope alone. The structural gate \
+(`product graph check`) enforces presence; the body-reference gate \
+flags TCs whose body never mentions any declared surface.";
 
 /// Run the 5-step implementation pipeline
 #[allow(clippy::too_many_arguments)]
@@ -25,6 +39,7 @@ pub fn run_implement(
     no_verify: bool,
     headless: bool,
     no_auto_runners: bool,
+    target: Option<&str>,
 ) -> Result<()> {
     // Validate the feature exists before any output. We re-fetch it from
     // the working graph after Step 0a so the rest of the pipeline sees
@@ -93,8 +108,24 @@ pub fn run_implement(
 
     // Step 3 — Context assembly
     print!("  Step 3: Context assembly... ");
-    let bundle = context::bundle_feature(working_graph, feature_id, 2, true)
+    let raw_bundle = context::bundle_feature(working_graph, feature_id, 2, true)
         .unwrap_or_default();
+
+    // Legacy template (FT-074): caller opted into the pre-FT-074 bundle
+    // shape — strip the Patterns section produced by `bundle_feature`,
+    // skip observes-inline injection, and omit the ADR-051 reminder.
+    let is_legacy = matches!(target, Some(t) if t == "legacy-template");
+
+    // FT-074: surface each linked TC's `observes:` adjacent to its body
+    // so the executor agent sees the assertion shape at glance. Skipped
+    // in legacy mode for backwards compatibility with templates that
+    // never read the new variable.
+    let bundle = if is_legacy {
+        strip_patterns_section(&raw_bundle)
+    } else {
+        let observes_rows = build_observes_table(working_graph, feature_id);
+        inject_observes_inline(&raw_bundle, &observes_rows)
+    };
 
     // Build TC status table
     let mut tc_table = String::new();
@@ -114,11 +145,20 @@ pub fn run_implement(
     // legacy `benchmarks/prompts/` fallback.
     let base_prompt = crate::author::prompts::get(root, config.paths.prompts_resolved(), "implement").unwrap_or_default();
 
+    // FT-074: extend the hard-constraint block with the ADR-051 reminder
+    // line. Legacy mode preserves the pre-FT-074 hard-constraint block.
+    let adr_051_line = if is_legacy {
+        String::new()
+    } else {
+        format!("- {}\n", ADR_051_HARD_CONSTRAINT)
+    };
+
     let dynamic_suffix = format!(
-        "# Implementation Task: {} — {}\n\n## Current test status\n{}\n\n## Hard constraints\n- Run the test suite before reporting complete\n- Test functions must match the configured `runner-args` names, or run `product test runner TC-XXX --args ...` to rename them.\n- When done: `product verify {}`\n\n## Context Bundle\n{}\n",
+        "# Implementation Task: {} — {}\n\n## Current test status\n{}\n\n## Hard constraints\n- Run the test suite before reporting complete\n- Test functions must match the configured `runner-args` names, or run `product test runner TC-XXX --args ...` to rename them.\n- When done: `product verify {}`\n{}\n## Context Bundle\n{}\n",
         feature.front.id, feature.front.title,
         tc_table,
         feature.front.id,
+        adr_051_line,
         bundle,
     );
 
@@ -267,6 +307,32 @@ fn print_autofill_plan(plans: &[AutofillPlan]) {
             "  pre-flight: {} missing runner config — auto-setting runner={} args={} timeout={}s",
             plan.tc_id, AUTOFILL_RUNNER, plan.derived_args, AUTOFILL_TIMEOUT_SECS,
         );
+    }
+}
+
+/// Strip the `## Patterns` section from a rendered bundle (FT-074 legacy
+/// mode). Returns the bundle unchanged when no such section exists.
+fn strip_patterns_section(bundle: &str) -> String {
+    let Some(start) = bundle.find("## Patterns") else {
+        return bundle.to_string();
+    };
+    // Find the next top-level heading after the patterns section.
+    let after = &bundle[start..];
+    let search_offset = 2; // skip past the leading "##"
+    let cut = after[search_offset..]
+        .find("\n## ")
+        .map(|next| search_offset + next + 1);
+    match cut {
+        Some(c) => {
+            let mut out = String::with_capacity(bundle.len());
+            out.push_str(&bundle[..start]);
+            out.push_str(&after[c..]);
+            out
+        }
+        None => {
+            // No following section — drop everything from the heading.
+            bundle[..start].to_string()
+        }
     }
 }
 
