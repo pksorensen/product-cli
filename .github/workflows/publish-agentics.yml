@@ -18,9 +18,11 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # No checkout — only artifact downloads + the OIDC mint, so id-token is
+    # the only permission. (The dist-generated caller grants id-token+packages;
+    # requesting contents here would exceed it and fail workflow startup.)
     permissions:
       id-token: write
-      contents: read
     steps:
       # cargo-dist uploaded the built archives to scratch storage as artifacts-*
       - name: Fetch artifacts
