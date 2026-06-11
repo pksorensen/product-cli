@@ -278,11 +278,6 @@ jobs:
 
           gh release create "${{ needs.plan.outputs.tag }}" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --title "$ANNOUNCEMENT_TITLE" --notes-file "$RUNNER_TEMP/notes.txt" artifacts/*
 
-  # Custom publish job (declared in dist-workspace.toml `publish-jobs`):
-  # pushes convention-named binaries to the agentics.dk release store so
-  #   curl -fsSL https://agentics.dk/install/product-cli.sh | bash
-  # works. Kept in dist's custom-publish-job format so `dist generate`
-  # re-includes it.
   custom-publish-agentics:
     needs:
       - plan
@@ -292,9 +287,10 @@ jobs:
     with:
       plan: ${{ needs.plan.outputs.val }}
     secrets: inherit
+    # publish jobs get escalated permissions
     permissions:
-      id-token: write
-      contents: read
+      "id-token": "write"
+      "packages": "write"
 
   announce:
     needs:
