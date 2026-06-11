@@ -1,0 +1,95 @@
+# Custom cargo-dist publish job (wired via `publish-jobs = ["./publish-agentics"]`
+# in dist-workspace.toml): extracts the `product` binary from each cargo-dist
+# archive, renames it to the agentics asset convention
+#   product-cli_{os}_{arch}[.exe]  +  product-cli_{semver}_checksums.txt
+# and publishes to the agentics.dk release store via GitHub OIDC trusted
+# publishing. After this, the CLI installs with
+#   curl -fsSL https://agentics.dk/install/product-cli.sh | bash
+# (binaryName=product → installed command is `product`).
+name: Publish to agentics.dk
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        required: true
+        type: string
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      # cargo-dist uploaded the built archives to scratch storage as artifacts-*
+      - name: Fetch artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: artifacts-*
+          path: artifacts
+          merge-multiple: true
+
+      - name: Extract binaries to the agentics naming convention
+        id: prep
+        run: |
+          set -euo pipefail
+          VERSION=$(echo '${{ inputs.plan }}' | jq -r '.releases[0].app_version')
+          [ -n "$VERSION" ] && [ "$VERSION" != "null" ] || { echo "::error::no app_version in plan"; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          mkdir -p dist
+          declare -A MAP=(
+            ["x86_64-unknown-linux-gnu"]="linux_amd64"
+            ["aarch64-unknown-linux-gnu"]="linux_arm64"
+            ["x86_64-apple-darwin"]="darwin_amd64"
+            ["aarch64-apple-darwin"]="darwin_arm64"
+            ["x86_64-pc-windows-msvc"]="windows_amd64"
+          )
+          for triple in "${!MAP[@]}"; do
+            osarch="${MAP[$triple]}"
+            tarball=$(ls artifacts/product-*"${triple}"*.tar.* 2>/dev/null | head -n1 || true)
+            zipfile=$(ls artifacts/product-*"${triple}"*.zip 2>/dev/null | head -n1 || true)
+            out="dist/product-cli_${osarch}"
+            tmp=$(mktemp -d)
+            if [ -n "$tarball" ]; then
+              tar -xf "$tarball" -C "$tmp"
+              bin=$(find "$tmp" -type f -name product | head -n1)
+            elif [ -n "$zipfile" ]; then
+              unzip -q "$zipfile" -d "$tmp"
+              bin=$(find "$tmp" -type f -name product.exe | head -n1)
+              out="${out}.exe"
+            else
+              echo "::warning::no archive for ${triple} — skipping"
+              continue
+            fi
+            [ -n "$bin" ] || { echo "::error::binary not found in archive for ${triple}"; exit 1; }
+            cp "$bin" "$out"
+            echo "prepared $out"
+          done
+          ( cd dist && sha256sum product-cli_* > "product-cli_${VERSION}_checksums.txt" )
+          ls -la dist
+
+      - name: Publish to agentics.dk release store
+        working-directory: dist
+        env:
+          VERSION: ${{ steps.prep.outputs.version }}
+        run: |
+          set -euo pipefail
+          REC="product-cli-${VERSION}"
+          OIDC=$(curl -fsS -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=https://agentics.dk/releases" | jq -r '.value')
+          [ -n "$OIDC" ] && [ "$OIDC" != "null" ] || { echo "::error::failed to mint OIDC token"; exit 1; }
+          curl -fsS -X POST -H "Authorization: Bearer ${OIDC}" -H "Content-Type: application/json" \
+            -d "{\"component\":\"product-cli\",\"semver\":\"${VERSION}\",\"tagName\":\"v${VERSION}\",\"binaryName\":\"product\"}" \
+            https://agentics.dk/api/releases >/dev/null
+          for f in product-cli_*; do
+            [ -f "$f" ] || continue
+            echo "uploading $f"
+            curl -fsS -X PUT -H "Authorization: Bearer ${OIDC}" \
+              --data-binary @"$f" \
+              "https://agentics.dk/api/releases/${REC}/attachments/$(basename "$f")"
+            echo
+          done
+          curl -fsS -X PUT -H "Authorization: Bearer ${OIDC}" \
+            "https://agentics.dk/api/releases/${REC}/publish" >/dev/null
+          echo "published ${REC}"

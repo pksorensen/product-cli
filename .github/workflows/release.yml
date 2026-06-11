@@ -278,14 +278,33 @@ jobs:
 
           gh release create "${{ needs.plan.outputs.tag }}" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --title "$ANNOUNCEMENT_TITLE" --notes-file "$RUNNER_TEMP/notes.txt" artifacts/*
 
+  # Custom publish job (declared in dist-workspace.toml `publish-jobs`):
+  # pushes convention-named binaries to the agentics.dk release store so
+  #   curl -fsSL https://agentics.dk/install/product-cli.sh | bash
+  # works. Kept in dist's custom-publish-job format so `dist generate`
+  # re-includes it.
+  custom-publish-agentics:
+    needs:
+      - plan
+      - host
+    if: ${{ !fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases }}
+    uses: ./.github/workflows/publish-agentics.yml
+    with:
+      plan: ${{ needs.plan.outputs.val }}
+    secrets: inherit
+    permissions:
+      id-token: write
+      contents: read
+
   announce:
     needs:
       - plan
       - host
+      - custom-publish-agentics
     # use "always() && ..." to allow us to wait for all publish jobs while
     # still allowing individual publish jobs to skip themselves (for prereleases).
     # "host" however must run to completion, no skipping allowed!
-    if: ${{ always() && needs.host.result == 'success' }}
+    if: ${{ always() && needs.host.result == 'success' && (needs.custom-publish-agentics.result == 'skipped' || needs.custom-publish-agentics.result == 'success') }}
     runs-on: "ubuntu-22.04"
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
