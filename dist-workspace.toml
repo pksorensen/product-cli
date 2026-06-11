@@ -17,3 +17,7 @@ install-path = "CARGO_HOME"
 hosting = "github"
 # Whether to install an updater program
 install-updater = false
+# Custom publish job: pushes convention-named binaries to the agentics.dk
+# release store so `curl -fsSL https://agentics.dk/install/product-cli.sh | bash`
+# works (see .github/workflows/publish-agentics.yml).
+publish-jobs = ["./publish-agentics"]
